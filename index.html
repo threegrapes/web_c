@@ -30,6 +30,16 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 @keyframes slideIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
 @keyframes slideInLeft { from{transform:translateX(-100%)} to{transform:none} }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:none} }
+.recent-chat-item { position:relative; }
+.recent-chat-item .chat-menu-btn { opacity:0; transition:opacity .15s; }
+.recent-chat-item:hover .chat-menu-btn, .recent-chat-item.chat-menu-active .chat-menu-btn { opacity:1; }
+/* ---- welcome page responsive ---- */
+.welcome-web { display:flex; align-items:center; justify-content:center; gap:.6em; padding:120px 24px 80px; min-height:100%; }
+.welcome-mobile { display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:100px 24px 60px; min-height:100%; }
+@media(max-width:768px) {
+  .welcome-web { display:none !important; }
+  .welcome-mobile { display:flex !important; }
+}
 </style>
 </helmet>
 
@@ -71,12 +81,26 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 <div class="sa" style="position:absolute;inset:0;overflow-y:auto;padding:10px 20px 10px;">
 
 <!-- template watermark -->
+<sc-if value="{{ showWelcome }}" hint-placeholder-val="{{ true }}">
+<!-- web: horizontal -->
+<div class="welcome-web" style="position:sticky;top:0;left:0;right:0;">
+<svg width="1em" height="1em" viewBox="0 0 100 100" style="fill:hsl(14.8 63.1% 59.6% / 1);font-size:2.8rem;flex:none;"><path d="m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z"></path></svg>
+<span style="font-size:2.5rem;font-weight:400;color:#9A958B;line-height:1.35;">Hi, How can I help you today?</span>
+</div>
+<!-- mobile: vertical -->
+<div class="welcome-mobile" style="position:sticky;top:0;left:0;right:0;">
+<svg width="1em" height="1em" viewBox="0 0 100 100" style="fill:hsl(14.8 63.1% 59.6% / 1);font-size:3.2rem;flex:none;"><path d="m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z"></path></svg>
+<span style="font-size:1.35rem;font-weight:400;color:#9A958B;line-height:1.45;">{{ mobileGreeting }}</span>
+</div>
+</sc-if>
+<sc-if value="{{ !showWelcome }}" hint-placeholder-val="{{ false }}">
 <div style="position:sticky;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:0;">
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="opacity:.08;">
 <path d="M32 4 L34.5 26 L56 16 L38 28.5 L60 32 L38 35.5 L56 48 L34.5 38 L32 60 L29.5 38 L8 48 L26 35.5 L4 32 L26 28.5 L8 16 L29.5 26 Z" fill="#1A1815"/>
 <circle cx="32" cy="32" r="5" fill="#1A1815"/>
 </svg>
 </div>
+</sc-if>
 
 <!-- messages -->
 <sc-for list="{{ messages }}" as="m" hint-placeholder-count="4">
@@ -170,6 +194,13 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 </div>
 </div>
 </sc-if>
+
+<!-- AI icon badge -->
+<sc-if value="{{ !m.showUserActions }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top:24px;display:flex;justify-content:flex-start;">
+<svg class="spark-badge" width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z" fill="hsl(14.8 63.1% 59.6% / 1)"/></svg>
+</div>
+</sc-if>
 </div>
 </div>
 </sc-for>
@@ -180,7 +211,19 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 <!-- input bar -->
 <div style="flex:none;padding:8px 14px calc(env(safe-area-inset-bottom, 0px) + 6px);">
 <div style="background:#FBFAF7;border:1px solid #E7E3DA;border-radius:26px;padding:17px 17px 12px;box-shadow:0 1px 3px rgba(43,38,30,.04);">
-<textarea value="{{ input }}" onInput="{{ inputChange }}" onKeyDown="{{ inputKey }}" placeholder="{{ inputPlaceholder }}" rows="1" style="display:block;width:100%;min-height:30px;max-height:96px;border:none;background:transparent;resize:none;outline:none;font-family:inherit;font-size:16px;line-height:1.55;color:#2B2620;padding:2px 4px 17px;font-weight:300;"></textarea>
+<textarea value="{{ input }}" onInput="{{ inputChange }}" onKeyDown="{{ inputKey }}" placeholder="{{ inputPlaceholder }}" rows="1" style="display:block;width:100%;min-height:30px;max-height:50vh;border:none;background:transparent;resize:none;outline:none;font-family:inherit;font-size:16px;line-height:1.55;color:#2B2620;padding:2px 4px 17px;font-weight:300;field-sizing:content;"></textarea>
+<!-- attached images preview -->
+<sc-if value="{{ hasAttachedImages }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+<sc-for list="{{ attachedImagesDisplay }}" as="img" hint-placeholder-count="5">
+<div style="position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:#EDEAE3;">
+<img src="{{ img.dataUrl }}" style="width:100%;height:100%;object-fit:cover;display:block;" />
+<button onClick="{{ img.remove }}" style="position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:#1A1815;color:#FFF;border:none;font-size:12px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;">✕</button>
+</div>
+</sc-for>
+<button onClick="{{ clearAttachedImages }}" style="align-self:center;height:28px;border:none;background:#E7E3DA;border-radius:14px;padding:0 11px;font-size:12px;font-family:inherit;color:#6B665E;cursor:pointer;">清空</button>
+</div>
+</sc-if>
 <div style="display:flex;align-items:center;justify-content:space-between;">
 <div style="display:flex;align-items:center;gap:9px;">
 <button onClick="{{ togglePlus }}" style="width:32px;height:32px;border-radius:50%;background:#F2EFE8;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;">
@@ -445,7 +488,12 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 <!-- recent chats list -->
 <div class="sa" style="flex:1;min-height:0;overflow-y:auto;padding:0 16px;">
 <sc-for list="{{ recentChats }}" as="c" hint-placeholder-count="8">
-<div onClick="{{ c.open }}" style="padding:11px 12px;border-radius:10px;font-size:14.5px;color:#3A362F;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.title }}</div>
+<div class="recent-chat-item {{ c.activeClass }}" onClick="{{ c.open }}" onTouchStart="{{ c.touchStart }}" onTouchEnd="{{ c.touchEnd }}" onContextMenu="{{ c.contextMenu }}" style="padding:9px 10px 9px 12px;border-radius:10px;font-size:14.5px;color:#3A362F;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:space-between;background:{{ c.bg }};">
+<span style="flex:1;overflow:hidden;text-overflow:ellipsis;">{{ c.title }}</span>
+<button class="chat-menu-btn" onClick="{{ c.openMenu }}" style="flex:none;width:26px;height:26px;border:none;background:transparent;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;" aria-label="menu">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="2" fill="#9A958B"/><circle cx="12" cy="12" r="2" fill="#9A958B"/><circle cx="12" cy="18" r="2" fill="#9A958B"/></svg>
+</button>
+</div>
 </sc-for>
 </div>
 <!-- bottom bar -->
@@ -459,6 +507,22 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 <span>New</span>
 </button>
 </div>
+<!-- chat context menu -->
+<sc-if value="{{ chatMenuOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:400;">
+<div onClick="{{ closeChatMenu }}" style="position:absolute;inset:0;background:transparent;"></div>
+<div style="position:absolute;left:{{ chatMenuX }}px;top:{{ chatMenuY }}px;background:#FFF;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:6px;min-width:120px;animation:fadeUp .15s ease both;">
+<div onClick="{{ doRenameChat }}" style="padding:10px 14px;border-radius:8px;font-size:14px;color:#1A1815;cursor:pointer;display:flex;align-items:center;gap:10px;white-space:nowrap;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span>Rename</span>
+</div>
+<div onClick="{{ doDeleteChat }}" style="padding:10px 14px;border-radius:8px;font-size:14px;color:#C94E4E;cursor:pointer;display:flex;align-items:center;gap:10px;white-space:nowrap;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14" stroke="#C94E4E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span>Delete</span>
+</div>
+</div>
+</div>
+</sc-if>
 </div>
 </div>
 </sc-if>
@@ -607,6 +671,17 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 </div>
 <div style="display:flex;align-items:center;gap:6px;">
 <span style="font-size:14px;color:#9A958B;">{{ activeStyle }}</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#D1CCC2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+</div>
+<div style="height:1px;background:#ECE8DF;margin:0 18px;"></div>
+<div onClick="{{ triggerImageSelect }}" style="padding:15px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+<div style="display:flex;align-items:center;gap:13px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#48453E" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.8" fill="#48453E"/><path d="M21 15l-5-5L5 21" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span style="font-size:15px;font-weight:500;color:#1A1815;">Image / 图片</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;">
+<span style="font-size:14px;color:#9A958B;">{{ attachedImageHint }}</span>
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#D1CCC2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </div>
 </div>
@@ -783,6 +858,8 @@ const LS_WB_TRIGGERS = 'wb_triggers';
 const LS_PROMPTS = 'prompt_templates';
 const LS_PERSONAS = 'personas';
 const LS_ACTIVE_PERSONA = 'active_persona';
+const LS_RECENTS = 'recent_chats';
+const LS_CURRENT_CHAT_ID = 'current_chat_id';
 function lsGet(k, fallback) { try { const v = localStorage.getItem(k); return v !== null ? v : fallback; } catch { return fallback; } }
 function lsGetObj(k, fallback) { try { const v = localStorage.getItem(k); if (v === null) return fallback; return JSON.parse(v); } catch { return fallback; } }
 function lsSet(k, v) { try { localStorage.setItem(k, typeof v === 'object' ? JSON.stringify(v) : v); } catch(e) { console.warn('localStorage 写入失败，可能已满:', e); } }
@@ -794,13 +871,71 @@ function trimMessages(msgs) {
   return msgs.slice(msgs.length - MAX_MESSAGES);
 }
 function makeSession(id, title) { return { id, title, open: () => demoNoop() }; }
+
+// ====== 精灵图动画数据 ======
+const SPARK_SPRITES = {
+  waiting: {
+    viewBoxHeight: 1600,
+    frameCount: 16,
+    speed: 600,
+    path: "m19.622 66.499 19.675-11.033.325-.967-.325-.538h-.973l-3.297-.2-11.243-.301-9.73-.401-9.46-.502-2.378-.501L0 49.096l.216-1.454 2-1.354 2.865.251 6.324.451 9.514.652 6.865.402L38 49.097h1.622l.216-.652-.54-.401-.433-.402-9.838-6.67-10.649-7.02-5.567-4.063-2.973-2.056-1.514-1.906-.648-4.212 2.702-3.01 3.676.251.919.251 3.73 2.859 7.946 6.168 10.378 7.623 1.514 1.254.609-.411.093-.291-.703-1.154-5.621-10.18-6-10.381-2.703-4.313-.703-2.558c-.272-1.073-.432-1.961-.432-3.06L26.162.552 27.892 0l4.162.551 1.73 1.505 2.594 5.917 4.163 9.278 6.486 12.638 1.892 3.762 1.027 3.46.378 1.053h.649v-.602l.54-7.121.974-8.726.972-11.234.325-3.16L55.35 3.51l3.136-2.056 2.432 1.153 2 2.859-.27 1.855-1.19 7.724-2.324 12.086-1.513 8.124h.864l1.028-1.053 4.108-5.416 6.865-8.626 3.026-3.41 3.568-3.761 2.27-1.806h4.325l3.135 4.714-1.406 4.865-4.432 5.617-3.676 4.764-5.27 7.06-3.27 5.678.293.468.788-.067 11.892-2.557 6.432-1.154 7.676-1.304 3.46 1.605.378 1.655-1.352 3.36-8.216 2.006-9.621 1.956-14.328 3.373-.159.127.187.278 6.462.585 2.756.15h6.757l12.595.953 3.297 2.157L100 60.13l-.324 2.056-5.081 2.558-6.811-1.605-15.946-3.812-5.46-1.354h-.756v.452l4.54 4.463 8.379 7.523 10.432 9.729.54 2.407-1.35 1.906-1.406-.2-9.19-6.921L74 74.222l-8-6.77h-.54v.702l1.837 2.708 9.784 14.694.487 4.514-.703 1.454-2.54.903-2.757-.502-5.784-8.074-5.892-9.027-4.757-8.124-.574.362-2.831 30.23-1.298 1.554L47.405 100l-2.54-1.905-1.352-3.11 1.352-6.168 1.621-8.024 1.298-6.37 1.189-7.923.726-2.647-.064-.177-.58.097-5.974 8.193L34 84.252l-7.19 7.673-1.729.702-2.973-1.554.27-2.758 1.676-2.458L34 73.22l6-7.873 3.95-4.647-.1-.45-.234-.095-26.427 17.228-4.703.602-2.054-1.906.27-3.11.974-1.003zm21.192 52.148 8.753 16.491.408-.05 2.035-10.626 1.018-5.815 2.036-14.987 1.883-2.106 1.323-.351 2.85 1.905.305 1.203-.56 9.324-.865 7.568c-.288 3.793-.916 11.449-1.12 11.73-.203.281-.084 2.155 0 3.057l.865.452 1.375-1.354 2.9-4.461 5.751-7.769 7.888-11.228 3.97-1.053 2.544 1.654.458 1.905L80 123.158l-9.618 18.045-2.036 3.509.305.351 2.494-.351 6.514-1.403 5.649-1.705 4.987-1.253 4.682-1.153 3.868-.35 2.493 1.503.662 1.554-1.12 3.409-4.936 1.453-5.649 1.705-9.974 2.506-8.55 2.306-.509.3 1.12.301 7.939.652 9.465.451 5.75-.051 4.683 1.154 1.12 2.757.254 1.152-2.545 3.66-8.295-1.103-8.244-1.303-13.079-2.156-2.29-.25-.458.25.458.351 3.817 3.359 6.158 4.26L80 170.627l8.753 6.015 1.425 1.704.56 3.96-1.018 1.504-2.493 1.404-12.876-9.625-3.97-3.709-4.376-4.16-2.392-2.356-.254.15 4.071 7.469 9.975 15.489v4.561l-3.36 1.604-2.035-.501-1.628-2.356-2.952-4.862-5.089-7.669-6.26-9.073-.56-.301-.915.752-.56 6.566-.458 6.617c-.051 1.771-.163 5.393-.204 5.714-.05.401-.203 5.514-.203 5.614 0 .081-1.188 1.905-1.781 2.807l-2.087 1.705-3.206.35-1.221-.902-.764-3.809s.373-4.645.56-6.817l1.221-9.223 1.782-12.732-.204-.752-1.425-.15-.458.3-3.41 4.712-8.295 10.576-3.868 4.512-4.732 5.012-1.425 1.203-1.17-.15-1.731-1.604v-1.805l2.544-4.21 1.782-2.657 4.07-5.213 6.159-8.621 1.068-1.454-.305-.451-.407-.15-.509.15-1.476.752-4.53 2.456-3.765 2.406-6.361 4.21-4.02 2.356h-3.97l-1.476-1.203v-.852l1.018-2.155s1.187-1.103 1.73-1.604l2.29-2.206 1.578-1.554 1.628-1.002 4.53-2.857 7.786-4.562 9.211-5.413.305-.251v-.25l-.305-.151h-7.176l-11.145.151-11.959.25H5.7l-4.224-1.002L0 149.925v-1.704l.916-2.055 2.799-1.053 4.326.401 4.58.301 16.946 2.005 2.036.251 7.074.401v-.401l-.967-.702-14.402-10.025-8.397-6.015-6.565-4.261-1.323-3.709.305-2.306 1.323-1.353 1.527-1.253 1.629-.301 3.104 1.554 7.328 4.712 7.786 5.213 10.331 7.167.458-.2-5.496-8.471-4.427-7.77-5.09-7.719-3.358-6.466v-1.955L25.038 100l4.631.602 2.087 3.008zm0 100 8.753 16.491.408-.05 2.035-10.626 1.018-5.815 2.036-14.987 1.883-2.106 1.323-.351 2.85 1.905.305 1.203-.56 9.324-.865 7.568c-.288 3.793-.916 11.449-1.12 11.73-.203.281-.084 2.155 0 3.057l.865.452 1.375-1.354 2.9-4.461 5.751-7.769 7.888-11.228 3.97-1.053 2.544 1.654.458 1.905L80 223.158l-9.618 18.045-2.036 3.509.305.351 2.494-.351 6.514-1.403 5.649-1.705 4.987-1.253 4.682-1.153 3.868-.35 2.493 1.503.662 1.554-1.12 3.409-4.936 1.453-5.649 1.705-9.974 2.506-8.55 2.306-.509.3 1.12.301 7.939.652 9.465.451 5.75-.051 4.683 1.154 1.12 2.757.254 1.152-2.545 3.66-8.295-1.103-8.244-1.303-13.079-2.156-2.29-.25-.458.25.458.351 3.817 3.359 6.158 4.26L80 270.627l8.753 6.015 1.425 1.704.56 3.96-1.018 1.504-2.493 1.404-12.876-9.625-3.97-3.709-4.376-4.16-2.392-2.356-.254.15 4.071 7.469 9.975 15.489v4.561l-3.36 1.604-2.035-.501-1.628-2.356-2.952-4.862-5.089-7.669-6.26-9.073-.56-.301-.915.752-.56 6.566-.458 6.617c-.051 1.771-.163 5.393-.204 5.714-.05.401-.203 5.514-.203 5.614 0 .081-1.188 1.905-1.781 2.807l-2.087 1.705-3.206.35-1.221-.902-.764-3.809s.373-4.645.56-6.817l1.221-9.223 1.782-12.732-.204-.752-1.425-.15-.458.3-3.41 4.712-8.295 10.576-3.868 4.512-4.732 5.012-1.425 1.203-1.17-.15-1.731-1.604v-1.805l2.544-4.21 1.782-2.657 4.07-5.213 6.159-8.621 1.068-1.454-.305-.451-.407-.15-.509.15-1.476.752-4.53 2.456-3.765 2.406-6.361 4.21-4.02 2.356h-3.97l-1.476-1.203v-.852l1.018-2.155s1.187-1.103 1.73-1.604l2.29-2.206 1.578-1.554 1.628-1.002 4.53-2.857 7.786-4.562 9.211-5.413.305-.251v-.25l-.305-.151h-7.176l-11.145.151-11.959.25H5.7l-4.224-1.002L0 249.925v-1.704l.916-2.055 2.799-1.053 4.326.401 4.58.301 16.946 2.005 2.036.251 7.074.401v-.401l-.967-.702-14.402-10.025-8.397-6.015-6.565-4.261-1.323-3.709.305-2.306 1.323-1.353 1.527-1.253 1.629-.301 3.104 1.554 7.328 4.712 7.786 5.213 10.331 7.167.458-.2-5.496-8.471-4.427-7.77-5.09-7.719-3.358-6.466v-1.955L25.038 200l4.631.602 2.087 3.008zm0 100 8.753 16.491.408-.05 2.035-10.626 1.018-5.815 2.036-14.987 1.883-2.106 1.323-.351 2.85 1.905.305 1.203-.56 9.324-.865 7.568c-.288 3.793-.916 11.449-1.12 11.73-.203.28-.084 2.155 0 3.057l.865.452 1.375-1.354 2.9-4.461 5.751-7.769 7.888-11.228 3.97-1.053 2.544 1.654.458 1.905L80 323.158l-9.618 18.045-2.036 3.509.305.351 2.494-.351 6.514-1.403 5.649-1.705 4.987-1.253 4.682-1.153 3.868-.35 2.493 1.503.662 1.554-1.12 3.409-4.936 1.453-5.649 1.705-9.974 2.506-8.55 2.306-.509.3 1.12.301 7.939.652 9.465.451 5.75-.051 4.683 1.154 1.12 2.757.254 1.152-2.545 3.66-8.295-1.103-8.244-1.303-13.079-2.156-2.29-.25-.458.25.458.351 3.817 3.358 6.158 4.261L80 370.627l8.753 6.015 1.425 1.704.56 3.96-1.018 1.504-2.493 1.403-12.876-9.624-3.97-3.709-4.376-4.16-2.392-2.356-.254.15 4.071 7.469 9.975 15.489v4.561l-3.36 1.604-2.035-.501-1.628-2.356-2.952-4.862-5.089-7.669-6.26-9.073-.56-.301-.915.752-.56 6.566-.458 6.617c-.051 1.771-.163 5.393-.204 5.714-.05.401-.203 5.514-.203 5.614 0 .08-1.188 1.905-1.781 2.807l-2.087 1.705-3.206.35-1.221-.902-.764-3.809s.373-4.645.56-6.817l1.221-9.223 1.782-12.732-.204-.752-1.425-.151-.458.301-3.41 4.712-8.295 10.576-3.868 4.512-4.732 5.012-1.425 1.203-1.17-.15-1.731-1.604v-1.805l2.544-4.21 1.782-2.657 4.07-5.213 6.159-8.621 1.068-1.454-.305-.451-.407-.151-.509.151-1.476.752-4.53 2.456-3.765 2.406-6.361 4.21-4.02 2.356h-3.97l-1.476-1.203v-.852l1.018-2.155s1.187-1.103 1.73-1.604l2.29-2.206 1.578-1.554 1.628-1.002 4.53-2.857 7.786-4.562 9.211-5.413.305-.251v-.25l-.305-.151h-7.176l-11.145.151-11.959.25H5.7l-4.224-1.002L0 349.925v-1.704l.916-2.055 2.799-1.053 4.326.401 4.58.301 16.946 2.005 2.036.251 7.074.401v-.401l-.967-.702-14.402-10.025-8.397-6.015-6.565-4.261-1.323-3.709.305-2.306 1.323-1.353 1.527-1.253 1.629-.301 3.104 1.554 7.328 4.711 7.786 5.214 10.331 7.167.458-.2-5.496-8.471-4.427-7.77-5.09-7.719-3.358-6.466v-1.955L25.038 300l4.631.602 2.087 3.007zm-7.744 115.21c2.136 1.197 6.447 3.623 6.615 3.745l-4.147-8.857-2.152-4.909-5.46-9.008-4.986-7.135v-2.227c.898-1.692 2.288-2.717 3.202-4.403L27.927 400l4.724 1.873 3.517 4.555 2.1 4.605 3.044 9.362 6.562 14.12 1.312 2.631c.14-.455.441-1.488.525-1.973s.7-6.141.998-8.907l.787-12.045.682-6.528 2.52-4.049c.405-.318 3.99-1.113 3.99-1.113l2.572 2.131.84 2.474v9.615l-.84 4.15-2.205 10.729-.367 2.126v1.417l.367.607h.63l.892-.607 3.623-5.112 4.304-5.567 5.144-6.933 4.252-6.174 2.625-1.417 3.517-.202 2.31.506 1.522 2.682-1.785 3.795-9.449 14.12-7.559 12.601-.42.759.263.304h.262l2.1-.557 10.236-2.378 9.554-2.278 2.205-.607h4.567l1.26 2.379-1.26 3.137-.945.911-9.029 2.581-13.123 2.935-5.565 2.176-.262.102-.263.202.263.304h1.732l6.3.303h7.978l8.924.608 2.415.354 2.572.961 1.155 2.885-1.417 2.834-2.94 2.075-7.087-1.265-8.766-1.468-7.244-.607h-4.042v.304l.42.607 10.289 9.008 8.346 7.237 2.73 2.429.472 2.277s-1.465 1.602-2.047 2.126l-1.68.354-2.782-1.417-5.04-4.099-3.464-2.733-5.88-4.909-4.776-3.745-1.102-.86v.253l1.68 2.53 3.254 4.504 9.134 11.488.917 2.48-.392 1.872-2.82.503-3.48-.503-2.94-3.694-5.144-6.579-5.511-6.781-3.465-4.251-.315-.456-.525-.152c-.07.085-.23.274-.315.355s-.21 1.113-.262 1.619l-.578 10.577-1.154 14.727-.21 1.973-2.364 2.284-2.36.55-1.208-.202-1.05-.911-1.522-5.921.105-3.745.787-6.427 1.05-11.134v-1.012l-.63-.405h-.578l-.63.152-5.931 6.326-5.355 6.68-6.876 8.553-1.26 1.214h-2.257l-1.26-.961-.63-1.721 3.412-5.111 5.302-6.832 9.869-12.551.735-1.417v-1.771l-.473-.253h-.787l-4.567 2.682-4.042 2.025-13.858 8.35-3.097 1.467-2.363.304-2.257-.658-.682-1.822.21-2.935 2.414-1.569 5.512-3.137 7.98-4.707 11.443-6.629.735-.254.157-.253-.367-.202h-.945l-6.3-.304c-1.837-.067-5.648-.222-6.194-.303a2456 2456 0 0 0-9.553-1.265H5.353l-3.097-.253L0 449.899v-1.366l1.26-1.873 5.197-.506h6.614l14.856-.405 5.459-.404-9.292-6.984-17.217-11.336L3.99 425l-.315-1.973 1.89-3.188 3.359-1.62 3.255 1.215 10.236 6.427zm0 100c2.136 1.197 6.447 3.623 6.615 3.745l-4.147-8.857-2.152-4.909-5.46-9.008-4.986-7.135v-2.227c.898-1.692 2.288-2.717 3.202-4.403L27.927 500l4.724 1.873 3.517 4.555 2.1 4.605 3.044 9.362 6.562 14.12 1.312 2.631c.14-.455.441-1.488.525-1.973s.7-6.141.998-8.907l.787-12.045.682-6.528 2.52-4.049c.405-.318 3.99-1.113 3.99-1.113l2.572 2.131.84 2.474v9.615l-.84 4.15-2.205 10.729-.367 2.126v1.417l.367.607h.63l.892-.607 3.623-5.112 4.304-5.567 5.144-6.933 4.252-6.174 2.625-1.417 3.517-.202 2.31.506 1.522 2.682-1.785 3.795-9.449 14.12-7.559 12.601-.42.759.263.304h.262l2.1-.557 10.236-2.378 9.554-2.278 2.205-.607h4.567l1.26 2.379-1.26 3.137-.945.911-9.029 2.581-13.123 2.935-5.565 2.176-.262.102-.263.202.263.304h1.732l6.3.303h7.978l8.924.608 2.415.354 2.572.961 1.155 2.885-1.417 2.834-2.94 2.075-7.087-1.265-8.766-1.468-7.244-.607h-4.042v.304l.42.607 10.289 9.008 8.346 7.237 2.73 2.429.472 2.277s-1.465 1.602-2.047 2.126l-1.68.354-2.782-1.417-5.04-4.099-3.464-2.733-5.88-4.909-4.776-3.745-1.102-.86v.253l1.68 2.53 3.254 4.504 9.134 11.488.917 2.48-.392 1.872-2.82.503-3.48-.503-2.94-3.694-5.144-6.579-5.511-6.781-3.465-4.251-.315-.456-.525-.152c-.07.085-.23.274-.315.355s-.21 1.113-.262 1.619l-.578 10.577-1.154 14.727-.21 1.973-2.364 2.284-2.36.55-1.208-.202-1.05-.911-1.522-5.921.105-3.745.787-6.427 1.05-11.134v-1.012l-.63-.405h-.578l-.63.152-5.931 6.326-5.355 6.68-6.876 8.553-1.26 1.214h-2.257l-1.26-.961-.63-1.721 3.412-5.111 5.302-6.832 9.869-12.551.735-1.417v-1.771l-.473-.253h-.787l-4.567 2.682-4.042 2.025-13.858 8.35-3.097 1.467-2.363.304-2.257-.658-.682-1.822.21-2.935 2.414-1.569 5.512-3.137 7.98-4.707 11.443-6.629.735-.254.157-.253-.367-.202h-.945l-6.3-.304c-1.837-.067-5.648-.222-6.194-.303a2456 2456 0 0 0-9.553-1.265H5.353l-3.097-.253L0 549.899v-1.366l1.26-1.873 5.197-.506h6.614l14.856-.405 5.459-.404-9.292-6.984-17.217-11.336L3.99 525l-.315-1.973 1.89-3.188 3.359-1.62 3.255 1.215 10.236 6.427zm0 100c2.136 1.197 6.447 3.623 6.615 3.745l-4.147-8.857-2.152-4.909-5.46-9.008-4.986-7.135v-2.227c.898-1.692 2.288-2.717 3.202-4.403L27.927 600l4.724 1.873 3.517 4.555 2.1 4.605 3.044 9.362 6.562 14.12 1.312 2.631c.14-.455.441-1.488.525-1.973s.7-6.141.998-8.907l.787-12.045.682-6.528 2.52-4.049c.405-.318 3.99-1.113 3.99-1.113l2.572 2.131.84 2.474v9.615l-.84 4.15-2.205 10.729-.367 2.126v1.417l.367.607h.63l.892-.607 3.623-5.112 4.304-5.567 5.144-6.933 4.252-6.174 2.625-1.417 3.517-.202 2.31.506 1.522 2.682-1.785 3.795-9.449 14.12-7.559 12.601-.42.759.263.304h.262l2.1-.557 10.236-2.378 9.554-2.278 2.205-.607h4.567l1.26 2.379-1.26 3.137-.945.911-9.029 2.581-13.123 2.935-5.565 2.176-.262.102-.263.202.263.304h1.732l6.3.303h7.978l8.924.608 2.415.354 2.572.961 1.155 2.885-1.417 2.834-2.94 2.075-7.087-1.265-8.766-1.468-7.244-.607h-4.042v.304l.42.607 10.289 9.008 8.346 7.237 2.73 2.429.472 2.277s-1.465 1.602-2.047 2.126l-1.68.354-2.782-1.417-5.04-4.099-3.464-2.733-5.88-4.909-4.776-3.745-1.102-.86v.253l1.68 2.53 3.254 4.504 9.134 11.488.917 2.48-.392 1.872-2.82.503-3.48-.503-2.94-3.694-5.144-6.579-5.511-6.781-3.465-4.251-.315-.456-.525-.152c-.07.085-.23.274-.315.355s-.21 1.113-.262 1.619l-.578 10.577-1.154 14.727-.21 1.973-2.364 2.284-2.36.55-1.208-.202-1.05-.911-1.522-5.921.105-3.745.787-6.427 1.05-11.134v-1.012l-.63-.405h-.578l-.63.152-5.931 6.326-5.355 6.68-6.876 8.553-1.26 1.214h-2.257l-1.26-.961-.63-1.721 3.412-5.111 5.302-6.832 9.869-12.551.735-1.417v-1.771l-.473-.253h-.787l-4.567 2.682-4.042 2.025-13.858 8.35-3.097 1.467-2.363.304-2.257-.658-.682-1.822.21-2.935 2.414-1.569 5.512-3.137 7.98-4.707 11.443-6.629.735-.254.157-.253-.367-.202h-.945l-6.3-.304c-1.837-.067-5.648-.222-6.194-.303a2456 2456 0 0 0-9.553-1.265H5.353l-3.097-.253L0 649.899v-1.366l1.26-1.873 5.197-.506h6.614l14.856-.405 5.459-.404-9.292-6.984-17.217-11.336L3.99 625l-.315-1.973 1.89-3.188 3.359-1.62 3.255 1.215 10.236 6.427"
+  },
+  // 静态初始状态的 path（SVG badge 原始 path）
+  staticPath: "m19.6 66.5 19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z"
+};
+
+// ====== 精灵图动画控制器 ======
+let _sparkTimer = null;
+let _sparkFrame = 0;
+let _sparkAnim = null; // 当前动画名
+
+function sparkStartAnim(name) {
+  sparkStopAnim();
+  const sprite = SPARK_SPRITES[name];
+  if (!sprite) return;
+  _sparkAnim = name;
+  _sparkFrame = 0;
+  const badges = document.querySelectorAll('.spark-badge');
+  const badge = badges[badges.length - 1]; // 始终取最新的（最后一条消息的徽章）
+  if (!badge) return;
+  const badgePath = badge.querySelector('path');
+  if (!badgePath) return;
+  badgePath.setAttribute('d', sprite.path);
+  badge.setAttribute('viewBox', `0 0 100 ${sprite.viewBoxHeight}`);
+  // 显示第0帧
+  badge.setAttribute('viewBox', `0 0 100 100`);
+  _sparkTimer = setInterval(() => {
+    _sparkFrame = (_sparkFrame + 1) % sprite.frameCount;
+    badge.setAttribute('viewBox', `${0} ${_sparkFrame * 100} 100 100`);
+  }, sprite.speed);
+}
+
+function sparkStopAnim() {
+  if (_sparkTimer) {
+    clearInterval(_sparkTimer);
+    _sparkTimer = null;
+  }
+  _sparkAnim = null;
+  _sparkFrame = 0;
+  // 恢复静态状态（只恢复最新的徽章）
+  const badges = document.querySelectorAll('.spark-badge');
+  const badge = badges[badges.length - 1];
+  if (!badge) return;
+  const badgePath = badge.querySelector('path');
+  if (!badgePath) return;
+  badgePath.setAttribute('d', SPARK_SPRITES.staticPath);
+  badge.setAttribute('viewBox', '0 0 100 100');
+}
+
 class Component extends DCLogic {
   state = {
     tab: 'chat', sub: null, memory: false, drawer: false, plus: false, profile: false, style: false,
     sheet: null, toastShow: false, toastText: '', apiAdvanced: false,
     editText: '', currentThoughtText: DEMO_THOUGHT,
+    // 精灵图动画状态: null / 'waiting' / 'writing'
+    sparkAnim: null,
     // 聊天消息（动态）
-    messages: lsGetObj(LS_MESSAGES, []),
+    messages: [],
     // 是否正在等待AI回复
     isBusy: false,
     // 手动添加模型的输入框
@@ -827,14 +962,58 @@ class Component extends DCLogic {
     // Persona（自定义，选中后作为system prompt）
     personas: lsGetObj(LS_PERSONAS, [{ name: 'Companion persona', text: '你是一个温柔的伴侣AI，善解人意，说话温和' }, { name: 'Soft assistant', text: '你是一个高效的助手，简洁专业地回答问题' }]),
     personaDraftName: '', personaDraftText: '',
-    activePersona: lsGet(LS_ACTIVE_PERSONA, '')
+    activePersona: lsGet(LS_ACTIVE_PERSONA, ''),
+    // 最近对话列表与当前对话ID
+    recentChats: [],
+    currentChatId: 'current',
+    chatMenu: null,
+    // 附加图片（用于多模态/识图）
+    attachedImages: []
   };
+  componentDidUpdate(_prevProps) {
+    // 精灵图动画：根据 sparkAnim 状态变化启停动画
+    const cur = this.state.sparkAnim;
+    if (cur !== this._prevSparkAnim) {
+      this._prevSparkAnim = cur;
+      if (cur === 'waiting' || cur === 'writing') {
+        sparkStartAnim(cur);
+      } else {
+        sparkStopAnim();
+      }
+    }
+  }
+  componentDidMount() {
+    // 初始化最近对话：默认一个"当前对话"
+    let recents = lsGetObj(LS_RECENTS, null);
+    let currentId = lsGet(LS_CURRENT_CHAT_ID, null);
+    if (!recents || !recents.length) {
+      recents = [{ id: 'current', title: '当前对话', messages: lsGetObj(LS_MESSAGES, []) }];
+      currentId = 'current';
+    }
+    const currentChat = recents.find(c => c.id === currentId) || recents[0];
+    this.setState({
+      messages: currentChat.messages || [],
+      recentChats: recents,
+      currentChatId: currentChat.id
+    });
+    lsSet(LS_RECENTS, recents);
+    lsSet(LS_CURRENT_CHAT_ID, currentChat.id);
+    lsSet(LS_MESSAGES, currentChat.messages || []);
+  }
   show(text) {
     if (this._t) clearTimeout(this._t);
     this.setState({ toastShow: true, toastText: text || '' });
     this._t = setTimeout(() => this.setState({ toastShow: false }), 2200);
   }
-  closeSheet() { this.setState({ sheet: null, profile: false, plus: false }); }
+  closeSheet() {
+    // 关闭面板时自动清空未选中的模型，仅保留当前选中模型（避免几百个模型一直占用内存）
+    const selectedModel = (this.state.apiDraft || {}).model || '';
+    const trimmedModels = selectedModel ? [selectedModel] : [];
+    this.setState({ availableModels: trimmedModels });
+    this.setState(v => ({ apiDraft: { ...(v.apiDraft || {}), models: trimmedModels } }));
+    lsSet(LS_MY_MODELS, trimmedModels);
+    this.setState({ sheet: null, profile: false, plus: false });
+  }
   // ========== 核心：发送消息（真实API调用）==========
   async sendMessage() {
     const userMessage = String(this.state.input || '').trim();
@@ -845,14 +1024,18 @@ class Component extends DCLogic {
     const model = draft.model;
     if (!apiUrl || !apiKey) { this.show('请先在 API settings 中填写 URL 和 Key'); this.openApiSheet(); return; }
     if (!model) { this.show('请先选择或输入一个模型'); this.openApiSheet(); return; }
-    // 构造用户消息对象
+    // 构造用户消息对象（支持多模态图片）
+    const attachedImages = this.state.attachedImages || [];
+    const hasImages = attachedImages.length > 0;
     const meBase = { align: 'flex-end', maxW: '82%', fullW: 'auto', bg: '#ECEAE4', color: '#2B2620', radius: '22px', pad: '12px 18px', showActions: false, showUserActions: true, showNormal: true, showEdit: false, gap: '32px', hasMemory: false, hasThink: false, variantText: '', edit: () => this.show('点击编辑') };
     const aiBase = { align: 'flex-start', maxW: '100%', fullW: 'auto', bg: 'transparent', color: '#2B2620', radius: '0', pad: '0 2px', showActions: true, showUserActions: false, showNormal: true, showEdit: false, gap: '32px', hasMemory: false, hasThink: false, variantText: '1 / 1' };
-    const userMsg = { ...meBase, text: userMessage, role: 'user' };
+    // 用户消息文本：有图片时显示提示，无图片时纯文本
+    const displayText = hasImages ? (userMessage || '[图片]') : userMessage;
+    const userMsg = { ...meBase, text: displayText, role: 'user', hasImages, imageCount: attachedImages.length };
     // 思考占位消息（带脉冲动画）
     const thinkingPlaceholder = { align: 'flex-start', maxW: '100%', fullW: 'auto', bg: 'transparent', color: '#2B2620', radius: '0', pad: '0 2px', showActions: false, showUserActions: false, showNormal: false, showEdit: false, gap: '32px', hasMemory: false, hasThink: false, isThinking: true, role: 'thinking', text: '' };
     const newMessages = [...this.state.messages, userMsg, thinkingPlaceholder];
-    this.setState({ messages: newMessages, input: '', isBusy: true });
+    this.setState({ messages: newMessages, input: '', isBusy: true, sparkAnim: 'waiting', attachedImages: [] });
     lsSet(LS_MESSAGES, trimMessages(newMessages.filter(m => m.role !== 'thinking')));
     // 构造API请求体（OpenAI兼容格式）
     const apiMessages = [];
@@ -870,7 +1053,28 @@ class Component extends DCLogic {
     if (styleContent) systemPrompt += 'Style: ' + styleContent;
     if (systemPrompt) apiMessages.push({ role: 'system', content: systemPrompt.trim() });
     for (const m of newMessages) {
-      apiMessages.push({ role: m.role || (m.align === 'flex-end' ? 'user' : 'assistant'), content: m.text });
+      const role = m.role || (m.align === 'flex-end' ? 'user' : 'assistant');
+      // 用户消息带图片时，构造多模态content数组
+      if (m.role === 'user' && m.hasImages && attachedImages.length > 0) {
+        const contentParts = [];
+        if (m.text && m.text !== '[图片]') {
+          contentParts.push({ type: 'text', text: m.text });
+        } else if (!m.text) {
+          contentParts.push({ type: 'text', text: '请描述这张图片' });
+        }
+        for (const img of attachedImages) {
+          const base64Data = img.dataUrl ? img.dataUrl.split(',')[1] : '';
+          const mediaType = img.type || 'image/jpeg';
+          if (isAnthropic) {
+            contentParts.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } });
+          } else {
+            contentParts.push({ type: 'image_url', image_url: { url: img.dataUrl } });
+          }
+        }
+        apiMessages.push({ role, content: contentParts });
+      } else {
+        apiMessages.push({ role, content: m.text });
+      }
     }
     // 确定API端点
     let base = apiUrl.replace(/\/+$/, '');
@@ -960,14 +1164,16 @@ class Component extends DCLogic {
       // 替换思考占位消息为真实AI回复
       const cleanedMessages = newMessages.filter(m => m.role !== 'thinking');
       const finalMessages = [...cleanedMessages, aiMsg];
-      this.setState({ messages: finalMessages, isBusy: false });
+      this.setState({ messages: finalMessages, isBusy: false, sparkAnim: null });
       lsSet(LS_MESSAGES, trimMessages(finalMessages));
+      this.saveCurrentChat(finalMessages);
     } catch (error) {
       this.show('连接失败: ' + error.message);
       // 移除思考占位 + 加载状态
       const cleanedMessages = this.state.messages.filter(m => m.role !== 'thinking');
-      this.setState({ messages: cleanedMessages, isBusy: false });
+      this.setState({ messages: cleanedMessages, isBusy: false, sparkAnim: null });
       lsSet(LS_MESSAGES, trimMessages(cleanedMessages));
+      this.saveCurrentChat(cleanedMessages);
     }
   }
   // 重新生成（删除最后一条AI回复后重新发送）
@@ -1051,6 +1257,12 @@ class Component extends DCLogic {
     lsSet(LS_API_NAME, draft.name || 'My API');
     lsSet(LS_API_TYPE, draft.apiType || 'openai');
     lsSet(LS_ACTIVE_MODEL, draft.model || '');
+    // 保存后清空未选中的模型列表，避免几百个模型一直占用内存；仅保留当前选中模型
+    const selectedModel = draft.model || '';
+    const trimmedModels = selectedModel ? [selectedModel] : [];
+    this.setState({ availableModels: trimmedModels });
+    this.setState(v => ({ apiDraft: { ...(v.apiDraft || {}), models: trimmedModels } }));
+    lsSet(LS_MY_MODELS, trimmedModels);
     this.show('API 配置已保存');
     this.closeSheet();
   }
@@ -1065,16 +1277,165 @@ class Component extends DCLogic {
     this.show('API 配置已清空');
     this.closeSheet();
   }
+  // ========== 图片附件功能（多模态识图）==========
+  triggerImageSelect() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/gif,image/webp';
+    input.multiple = true;
+    input.onchange = (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      const maxTotal = 5; // 最多5张
+      const existing = this.state.attachedImages || [];
+      if (existing.length + files.length > maxTotal) { this.show('最多附加 ' + maxTotal + ' 张图片'); return; }
+      const readers = files.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ name: file.name, type: file.type, dataUrl: reader.result, size: file.size });
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+      });
+      Promise.all(readers).then(results => {
+        const valid = results.filter(r => r !== null);
+        if (valid.length) {
+          this.setState({ attachedImages: [...existing, ...valid], plus: false });
+          this.show('已添加 ' + valid.length + ' 张图片');
+        }
+      });
+    };
+    input.click();
+  }
+  removeAttachedImage(index) {
+    const list = [...(this.state.attachedImages || [])];
+    list.splice(index, 1);
+    this.setState({ attachedImages: list });
+  }
+  clearAttachedImages() {
+    this.setState({ attachedImages: [] });
+  }
   // ========== 新建API配置 ==========
   newApiDraft() {
     this.setState({ apiDraft: { name: '', apiType: 'openai', connectorUrl: '', accessValue: '', model: '', useGateway: false, models: this.state.availableModels || [] }, apiAdvanced: true, sheet: 'api', plus: false, profile: false });
   }
-  // ========== 新聊天 ==========
+  // ========== 最近对话管理 ==========
+  buildSavedRecents() {
+    const { messages, currentChatId, recentChats } = this.state;
+    return recentChats.map(c => {
+      if (c.id === currentChatId) {
+        const firstUser = messages.find(m => m.role === 'user' || m.align === 'flex-end');
+        let title = c.title;
+        if (firstUser && firstUser.text) {
+          const t = String(firstUser.text).trim();
+          if (t) title = t.length > 20 ? t.slice(0, 20) + '...' : t;
+        }
+        return { ...c, title, messages: [...messages] };
+      }
+      return c;
+    });
+  }
+  saveCurrentChat(messages) {
+    const msgs = messages || this.state.messages;
+    const { currentChatId, recentChats } = this.state;
+    const list = recentChats.map(c => {
+      if (c.id === currentChatId) {
+        const firstUser = msgs.find(m => m.role === 'user' || m.align === 'flex-end');
+        let title = c.title;
+        if (firstUser && firstUser.text) {
+          const t = String(firstUser.text).trim();
+          if (t) title = t.length > 20 ? t.slice(0, 20) + '...' : t;
+        }
+        return { ...c, title, messages: [...msgs] };
+      }
+      return c;
+    });
+    this.setState({ recentChats: list });
+    lsSet(LS_RECENTS, list);
+  }
+  generateChatTitle(messages) {
+    const firstUser = messages.find(m => m.role === 'user' || m.align === 'flex-end');
+    if (firstUser && firstUser.text) {
+      const t = String(firstUser.text).trim();
+      if (t) return t.length > 20 ? t.slice(0, 20) + '...' : t;
+    }
+    return '当前对话';
+  }
   newChat() {
-    this.setState({ messages: [], input: '' });
+    const hasMessages = (this.state.messages || []).length > 0;
+    const list = hasMessages ? this.buildSavedRecents() : this.state.recentChats.filter(c => c.id !== this.state.currentChatId);
+    const newId = 'chat_' + Date.now();
+    const newChat = { id: newId, title: '当前对话', messages: [] };
+    const newList = [newChat, ...list];
+    this.setState({ messages: [], input: '', recentChats: newList, currentChatId: newId, drawer: false });
     lsSet(LS_MESSAGES, []);
+    lsSet(LS_RECENTS, newList);
+    lsSet(LS_CURRENT_CHAT_ID, newId);
     this.show('新对话已开始');
   }
+  openChat(chat) {
+    if (chat.id === this.state.currentChatId) {
+      this.setState({ drawer: false });
+      return;
+    }
+    const hasMessages = (this.state.messages || []).length > 0;
+    const list = hasMessages ? this.buildSavedRecents() : this.state.recentChats.filter(c => c.id !== this.state.currentChatId);
+    const target = list.find(c => c.id === chat.id);
+    if (!target) return;
+    this.setState({ messages: target.messages || [], input: '', recentChats: list, currentChatId: target.id, drawer: false });
+    lsSet(LS_MESSAGES, target.messages || []);
+    lsSet(LS_RECENTS, list);
+    lsSet(LS_CURRENT_CHAT_ID, target.id);
+  }
+  deleteChat(chat) {
+    let list = this.state.recentChats.filter(c => c.id !== chat.id);
+    if (list.length === 0) {
+      const newId = 'chat_' + Date.now();
+      list = [{ id: newId, title: '当前对话', messages: [] }];
+    }
+    if (chat.id === this.state.currentChatId) {
+      this.setState({ messages: list[0].messages || [], input: '', recentChats: list, currentChatId: list[0].id, chatMenu: null });
+      lsSet(LS_MESSAGES, list[0].messages || []);
+      lsSet(LS_CURRENT_CHAT_ID, list[0].id);
+    } else {
+      this.setState({ recentChats: list, chatMenu: null });
+    }
+    lsSet(LS_RECENTS, list);
+  }
+  renameChat(chat) {
+    const newTitle = window.prompt('重命名对话', chat.title);
+    if (!newTitle || !newTitle.trim()) return;
+    const list = this.state.recentChats.map(c => c.id === chat.id ? { ...c, title: newTitle.trim() } : c);
+    this.setState({ recentChats: list, chatMenu: null });
+    lsSet(LS_RECENTS, list);
+  }
+  showChatMenu(chat, e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    const clientX = e && e.clientX ? e.clientX : (e && e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e && e.clientY ? e.clientY : (e && e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    this.setState({ chatMenu: { chat, x: clientX, y: clientY } });
+  }
+  closeChatMenu() {
+    this.setState({ chatMenu: null });
+  }
+  startLongPress(chat, e) {
+    this.cancelLongPress();
+    const touch = e && e.touches && e.touches[0];
+    const x = touch ? touch.clientX : (e ? e.clientX : 0);
+    const y = touch ? touch.clientY : (e ? e.clientY : 0);
+    this._longPressTimer = setTimeout(() => {
+      this._longPressTimer = null;
+      this.showChatMenu(chat, { clientX: x, clientY: y, preventDefault: () => {}, stopPropagation: () => {} });
+    }, 500);
+  }
+  cancelLongPress() {
+    if (this._longPressTimer) {
+      clearTimeout(this._longPressTimer);
+      this._longPressTimer = null;
+    }
+  }
+  // ========== 新聊天 ==========
   openApiSheet() {
     this.setState({ plus: false, profile: false, sheet: 'api' });
   }
@@ -1155,6 +1516,19 @@ class Component extends DCLogic {
     const activeCompanion = s.activePersona || '未选择';
     // API配置状态（提前定义，供后续引用）
     const apiConfigured = !!apiDraft.connectorUrl && !!apiDraft.accessValue;
+    // 欢迎页面：无消息时显示图标+问候语
+    const hasMessages = (s.messages || []).length > 0;
+    const showWelcome = !hasMessages;
+    let welcomeText = '';
+    if (!hasMessages) {
+      welcomeText = apiConfigured ? '你好！已配置好 API，选择模型后即可开始对话。' : '你好！请先点击右上角 ⋯ → API settings 配置你的中转站 URL 和 Key，然后拉取模型开始对话。';
+    }
+    // 手机端时间问候语
+    const hour = new Date().getHours();
+    let timeGreeting = 'Good evening';
+    if (hour >= 5 && hour < 12) timeGreeting = 'Good morning';
+    else if (hour >= 12 && hour < 18) timeGreeting = 'Good afternoon';
+    const mobileGreeting = timeGreeting + ', 亦潇';
     const aiBaseEmpty = { align: 'flex-start', maxW: '100%', fullW: 'auto', bg: 'transparent', color: '#2B2620', radius: '0', pad: '0 2px', showActions: false, showUserActions: false, showNormal: true, showEdit: false, gap: '32px', hasMemory: false, hasThink: false, variantText: '', copy: demoNoop, refresh: demoNoop, prev: demoNoop, next: demoNoop };
     // 消息列表：空时显示欢迎提示，有消息时动态绑定交互函数
     const messages = (s.messages || []).length > 0
@@ -1174,7 +1548,7 @@ class Component extends DCLogic {
           }
           return m;
         })
-      : [{ ...aiBaseEmpty, text: apiConfigured ? '你好！已配置好 API，选择模型后即可开始对话。' : '你好！请先点击右上角 ⋯ → API settings 配置你的中转站 URL 和 Key，然后拉取模型开始对话。' }];
+      : [];
     // 模型选项卡片（API settings中的模型按钮）
     const apiModelOptions = (s.availableModels || []).length > 0
       ? s.availableModels.map(m => ({
@@ -1207,15 +1581,26 @@ class Component extends DCLogic {
       { name: 'Soft neutral', bg: styleDraft.title === 'Soft neutral' ? '#1A1815' : '#FFF', bd: styleDraft.title === 'Soft neutral' ? '#1A1815' : '#E7E3DA', fg: styleDraft.title === 'Soft neutral' ? '#F5F3EE' : '#2B2620', pick: () => { this.setState({ styleDraft: { title: 'Soft neutral', content: 'Warm companion UI.' } }); this.show('已切换到 Soft neutral'); } },
       { name: 'Quiet paper', bg: styleDraft.title === 'Quiet paper' ? '#1A1815' : '#FFF', bd: styleDraft.title === 'Quiet paper' ? '#1A1815' : '#E7E3DA', fg: styleDraft.title === 'Quiet paper' ? '#F5F3EE' : '#2B2620', pick: () => { this.setState({ styleDraft: { title: 'Quiet paper', content: '安静、克制、像写在纸上的文字。少用感叹号，不说废话，像私人的日记笔记。' } }); this.show('已切换到 Quiet paper'); } }
     ];
-    const recentChats = [makeSession('current', '当前对话'), makeSession('demo-2', '模板对话')];
+    const recentChats = (s.recentChats || []).map(c => ({
+      ...c,
+      activeClass: c.id === s.currentChatId ? 'chat-menu-active' : '',
+      bg: c.id === s.currentChatId ? '#EDEAE3' : 'transparent',
+      open: () => this.openChat(c),
+      openMenu: (e) => { e.stopPropagation(); this.showChatMenu(c, e); },
+      touchStart: (e) => this.startLongPress(c, e),
+      touchEnd: () => this.cancelLongPress(),
+      contextMenu: (e) => { e.preventDefault(); this.showChatMenu(c, e); }
+    }));
     const apiModelListHint = s.availableModels?.length > 0 ? '已加载 ' + s.availableModels.length + ' 个模型' : (apiConfigured ? '点击"拉模型"获取可用模型' : '请先配置 URL 和 Key');
     return {
       true: true, false: false,
       isChat: s.tab === 'chat' && !s.sub, isHome: s.tab === 'home' && !s.sub, isMore: s.tab === 'more' && !s.sub,
       showSub: !!s.sub, isMoments: s.sub === 'moments', isDiary: s.sub === 'diary', isMood: s.sub === 'mood', isAnniv: s.sub === 'anniversary',
       subTitle: ({ moments: 'Moments', diary: 'Diary / Letters', mood: 'Mood', anniversary: 'Anniversaries' }[s.sub] || ''),
-      messages, recentChats, memoryOpen: s.memory, memRot: s.memory ? 'rotate(180deg)' : 'rotate(0deg)', isBusy: s.isBusy,
+      messages, recentChats, memoryOpen: s.memory, memRot: s.memory ? 'rotate(180deg)' : 'rotate(0deg)', isBusy: s.isBusy, sparkAnim: s.sparkAnim,
+      showWelcome, welcomeText, mobileGreeting,
       drawerOpen: s.drawer, plusOpen: s.plus, profileOpen: s.profile, styleOpen: s.style, sheetOpen: !!s.sheet,
+      chatMenuOpen: !!s.chatMenu, chatMenuX: s.chatMenu ? s.chatMenu.x : 0, chatMenuY: s.chatMenu ? s.chatMenu.y : 0,
       isApiSheet: s.sheet === 'api', isAiSheet: s.sheet === 'ai', isPromptSheet: s.sheet === 'prompt', isWorldbookSheet: s.sheet === 'worldbook', isThoughtSheet: s.sheet === 'thought',
       editText: s.editText, currentThoughtText: s.currentThoughtText || DEMO_THOUGHT, toastShow: s.toastShow, toastText: s.toastText,
       input: s.input, inputPlaceholder: apiConfigured ? 'Message companion...' : '请先配置 API...', activeStyle, activeModel, activeCompanion,
@@ -1238,6 +1623,10 @@ class Component extends DCLogic {
       // Persona 编辑
       personaDraftName: s.personaDraftName || '',
       personaDraftText: s.personaDraftText || '',
+      // 图片附件
+      hasAttachedImages: (s.attachedImages || []).length > 0,
+      attachedImageHint: (s.attachedImages || []).length > 0 ? s.attachedImages.length + ' 张' : '选择',
+      attachedImagesDisplay: (s.attachedImages || []).map((img, i) => ({ dataUrl: img.dataUrl, name: img.name, remove: () => this.removeAttachedImage(i) })),
       sheetPanelPos: s.sheet === 'thought' ? 'top:36px;bottom:0;left:0;right:0;' : 'bottom:0;left:0;right:0;',
       sheetPanelBg: s.sheet === 'thought' ? 'rgba(255,255,255,0.82)' : '#F5F3EE', sheetPanelRadius: s.sheet === 'thought' ? '18px 18px 0 0' : '16px 16px 0 0', sheetPanelPad: s.sheet === 'thought' ? '0' : '12px 0 26px', sheetPanelShadow: s.sheet === 'thought' ? '0 -8px 30px rgba(0,0,0,.06)' : 'none', sheetPanelBlur: s.sheet === 'thought' ? 'backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);' : '', sheetHandleW: s.sheet === 'thought' ? '0' : '36px', sheetHandleMb: s.sheet === 'thought' ? '0' : '14px', sheetOverlayBg: s.sheet === 'thought' ? 'transparent' : 'rgba(0,0,0,.18)',
       drawerChatC: s.tab === 'chat' ? '#1A1815' : '#9A958B', drawerChatBg: s.tab === 'chat' ? '#EDEAE3' : 'transparent', drawerHomeC: s.tab === 'home' ? '#1A1815' : '#9A958B', drawerHomeBg: s.tab === 'home' ? '#EDEAE3' : 'transparent', drawerMoreC: s.tab === 'more' ? '#1A1815' : '#9A958B', drawerMoreBg: s.tab === 'more' ? '#EDEAE3' : 'transparent',
@@ -1249,6 +1638,9 @@ class Component extends DCLogic {
       send: () => this.sendMessage(),
       openApiSheet: () => this.openApiSheet(), openAiSheet: () => this.openAiSheet(), openPromptSheet: () => this.openPromptSheet(), openWorldbookSheet: () => this.openWorldbookSheet(), openThoughtSheet: () => this.openThoughtSheet(), closeSheet: () => this.closeSheet(),
       newChat: () => this.newChat(),
+      closeChatMenu: () => this.closeChatMenu(),
+      doRenameChat: (e) => { e.stopPropagation(); if (this.state.chatMenu) this.renameChat(this.state.chatMenu.chat); },
+      doDeleteChat: (e) => { e.stopPropagation(); if (this.state.chatMenu) this.deleteChat(this.state.chatMenu.chat); },
       pullCloud: () => this.show('本地模式，无云端'), syncCloud: () => this.show('本地模式'), githubBackup: () => this.show('本地模式'),
       newApiDraft: () => this.newApiDraft(),
       fetchApiModels: () => this.fetchApiModels(),
@@ -1264,6 +1656,10 @@ class Component extends DCLogic {
       setApiAnthropic: () => this.setState(v => ({ apiDraft: { ...(v.apiDraft || {}), apiType: 'anthropic' } })),
       toggleApiGateway: () => demoNoop(),
       toggleApiAdvanced: () => this.setState(v => ({ apiAdvanced: !v.apiAdvanced })),
+      // 图片附件
+      triggerImageSelect: () => this.triggerImageSelect(),
+      removeAttachedImage: (idx) => this.removeAttachedImage(idx),
+      clearAttachedImages: () => this.clearAttachedImages(),
       wbPermanentChange: e => this.setState(v => ({ wbDraft: { ...(v.wbDraft || {}), permanent: e.target.value } })),
       wbTriggersChange: e => this.setState(v => ({ wbDraft: { ...(v.wbDraft || {}), triggersText: e.target.value } })),
       saveWorldbook: () => this.saveWorldbook(),

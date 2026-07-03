@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<style>
+  /* 图标容器的基础样式 */
+  .thinking-icon {
+    width: 40px;
+    height: 40px;
+    color: #d97757; /* 类似 Claude 的主题色 */
+    
+    /* 1. 确保缩放以中心点为基准 */
+    transform-origin: center; 
+    
+    /* 2. 应用动画：名称 持续时间 缓动函数 无限循环 */
+    animation: pulse-breathing 1.5s ease-in-out infinite;
+  }
+
+  /* 3. 定义关键帧 */
+  @keyframes pulse-breathing {
+    0% {
+      transform: scale(0.9); /* 初始略小 */
+      opacity: 0.8;          /* 略微透明，增加层次感 */
+    }
+    50% {
+      transform: scale(1.1); /* 中间放大 */
+      opacity: 1;            /* 完全不透明 */
+    }
+    100% {
+      transform: scale(0.9); /* 回到初始状态，确保循环平滑 */
+      opacity: 0.8;
+    }
+  }
+</style>
+</head>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #fff8f5;">
+
+  <!-- 使用一个 SVG 模拟 Claude 的星形/四叶草图标 -->
+  <svg class="thinking-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+  </svg>
+
+</body>
+</html>

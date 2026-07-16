@@ -11,6 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="ui-beautification-template-build" content="public-open-20260629">
 <link rel="icon" href="./Claude-ai-icon.svg.webp" type="image/webp">
+<script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -40,6 +42,21 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
   .welcome-web { display:none !important; }
   .welcome-mobile { display:flex !important; }
 }
+/* ---- Markdown 渲染样式 ---- */
+.ai-msg-text pre { background:#2B2620; color:#E7E3DA; border-radius:10px; padding:14px 16px; margin:12px 0; overflow-x:auto; font-size:14px; line-height:1.6; }
+.ai-msg-text code { font-family:'SF Mono','Fira Code','Consolas',monospace; font-size:.9em; }
+.ai-msg-text :not(pre) > code { background:#EDEAE3; color:#B33D3D; padding:2px 6px; border-radius:5px; font-size:.88em; word-break:break-word; }
+.ai-msg-text table { border-collapse:collapse; margin:12px 0; width:auto; max-width:100%; display:block; overflow-x:auto; }
+.ai-msg-text th,.ai-msg-text td { border:1px solid #D6D2C8; padding:8px 14px; text-align:left; font-size:15px; }
+.ai-msg-text th { background:#EDEAE3; font-weight:600; }
+.ai-msg-text blockquote { border-left:4px solid #C9A86C; margin:10px 0; padding:8px 16px; color:#6B665E; }
+.ai-msg-text ul,.ai-msg-text ol { padding-left:24px; margin:8px 0; }
+.ai-msg-text li { margin:4px 0; }
+.ai-msg-text p { margin:8px 0; }
+.ai-msg-text h1,.ai-msg-text h2,.ai-msg-text h3,.ai-msg-text h4 { margin:18px 0 10px; font-weight:700; line-height:1.35; }
+.ai-msg-text a { color:#B33D3D; text-decoration:underline; }
+.ai-msg-text img { max-width:100%; border-radius:8px; }
+.ai-msg-text hr { border:none; border-top:1px solid #E7E3DA; margin:16px 0; }
 </style>
 </helmet>
 
@@ -152,7 +169,7 @@ body { background:#d6d2c8; padding:env(safe-area-inset-top, 0) 0 0 0; }
 
 <!-- message body: normal -->
 <sc-if value="{{ m.showNormal }}" hint-placeholder-val="{{ true }}">
-<div style="background:{{ m.bg }};color:{{ m.color }};border-radius:{{ m.radius }};padding:{{ m.pad }};font-size:16px;line-height:1.75;letter-spacing:-0.008em;white-space:pre-wrap;word-break:break-word;">{{ m.text }}</div>
+<div class="{{ m.isAi ? 'ai-msg-text' : '' }}" style="background:{{ m.bg }};color:{{ m.color }};border-radius:{{ m.radius }};padding:{{ m.pad }};font-size:16px;line-height:1.75;letter-spacing:-0.008em;white-space:pre-wrap;word-break:break-word;">{{ m.text }}</div>
 </sc-if>
 <!-- message body: edit mode -->
 <sc-if value="{{ m.showEdit }}" hint-placeholder-val="{{ false }}">
@@ -971,15 +988,27 @@ class Component extends DCLogic {
     attachedImages: []
   };
   componentDidUpdate(_prevProps) {
-    // 精灵图动画：根据 sparkAnim 状态变化启停动画
+    // 精灵图动画：每次渲染后，如果 sparkAnim 有值，确保动画运行在最新的 DOM 元素上
     const cur = this.state.sparkAnim;
-    if (cur !== this._prevSparkAnim) {
-      this._prevSparkAnim = cur;
-      if (cur === 'waiting' || cur === 'writing') {
-        sparkStartAnim(cur);
-      } else {
-        sparkStopAnim();
-      }
+    // 只要当前状态是 waiting/writing，就重新绑定动画到最新 DOM（因为 setState 会重建 DOM）
+    if (cur === 'waiting' || cur === 'writing') {
+      sparkStartAnim(cur);
+    } else if (this._prevSparkAnim && !cur) {
+      // 从有动画变为无动画：停止并恢复静态
+      sparkStopAnim();
+    }
+    this._prevSparkAnim = cur;
+    // Markdown 渲染（仅 AI 消息）
+    if (typeof marked !== 'undefined') {
+      document.querySelectorAll('.ai-msg-text').forEach(el => {
+        const raw = el.textContent.trim();
+        if (raw && !el.dataset.mdRendered) {
+          const dirty = marked.parse(raw, { async: false, gfm: true, breaks: true });
+          el.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(dirty) : dirty;
+          el.style.whiteSpace = 'normal';
+          el.dataset.mdRendered = '1';
+        }
+      });
     }
   }
   componentDidMount() {
@@ -1525,9 +1554,9 @@ class Component extends DCLogic {
     }
     // 手机端时间问候语
     const hour = new Date().getHours();
-    let timeGreeting = 'Good evening';
-    if (hour >= 5 && hour < 12) timeGreeting = 'Good morning';
-    else if (hour >= 12 && hour < 18) timeGreeting = 'Good afternoon';
+    let timeGreeting = 'Good Evening';
+    if (hour >= 5 && hour < 12) timeGreeting = 'Good Morning';
+    else if (hour >= 12 && hour < 18) timeGreeting = 'Good Afternoon';
     const mobileGreeting = timeGreeting + ', 亦潇';
     const aiBaseEmpty = { align: 'flex-start', maxW: '100%', fullW: 'auto', bg: 'transparent', color: '#2B2620', radius: '0', pad: '0 2px', showActions: false, showUserActions: false, showNormal: true, showEdit: false, gap: '32px', hasMemory: false, hasThink: false, variantText: '', copy: demoNoop, refresh: demoNoop, prev: demoNoop, next: demoNoop };
     // 消息列表：空时显示欢迎提示，有消息时动态绑定交互函数
@@ -1539,7 +1568,7 @@ class Component extends DCLogic {
           }
           // AI消息：复制和重新生成
           if (m.role === 'assistant' || m.align === 'flex-start') {
-            return { ...m, copy: m.copy || (() => { navigator.clipboard.writeText(m.text); this.show('已复制'); }),
+            return { ...m, isAi: true, copy: m.copy || (() => { navigator.clipboard.writeText(m.text); this.show('已复制'); }),
               refresh: m.refresh || (() => { const idx = s.messages.findIndex(x => x === m); if (idx > -1) { const msgs = [...s.messages]; msgs.splice(idx, 1); this.setState({ messages: msgs }, () => this.sendMessageRegen()); } }),
               prev: m.prev || (() => this.show('无更多版本')),
               next: m.next || (() => this.show('无更多版本')),

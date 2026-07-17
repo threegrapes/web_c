@@ -58,6 +58,31 @@ const store = useAppStore()
             <path d="M9 6l6 6-6 6" stroke="#D1CCC2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
+        <div class="divider"></div>
+        <div class="profile-item" @click="store.exportData">
+          <div class="profile-item-left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="profile-item-title">导出数据</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="#D1CCC2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="divider"></div>
+        <label class="profile-item">
+          <div class="profile-item-left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="profile-item-title">导入数据</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="#D1CCC2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <input type="file" accept=".json" class="import-file-input" @change="(e) => { if (e.target.files[0]) store.importData(e.target.files[0]); e.target.value = '' }" />
+        </label>
       </div>
     </div>
   </div>
@@ -130,6 +155,7 @@ const store = useAppStore()
 }
 
 .profile-item {
+  position: relative;
   padding: 15px 18px;
   display: flex;
   align-items: center;
@@ -159,6 +185,14 @@ const store = useAppStore()
   height: 1px;
   background: #ECE8DF;
   margin: 0 18px;
+}
+
+.import-file-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

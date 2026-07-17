@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 
 const store = useAppStore()
 const textareaRef = ref(null)
+const isComposing = ref(false)
 
 function autoResize() {
   const el = textareaRef.value
@@ -15,6 +16,12 @@ function autoResize() {
 function onInput(e) {
   store.inputChange(e.target.value)
   autoResize()
+}
+
+function onKeydown(e) {
+  // 中文输入法选词时不触发发送
+  if (isComposing.value) return
+  store.inputKey(e)
 }
 
 watch(() => store.input, () => {
@@ -29,7 +36,9 @@ watch(() => store.input, () => {
         ref="textareaRef"
         :value="store.input"
         @input="onInput"
-        @keydown="store.inputKey"
+        @keydown="onKeydown"
+        @compositionstart="isComposing = true"
+        @compositionend="isComposing = false"
         :placeholder="store.inputPlaceholder"
         rows="1"
         class="input-field"
@@ -65,7 +74,12 @@ watch(() => store.input, () => {
               <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3" stroke="#6B665E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
-          <button class="send-btn" @click="store.send">
+          <button v-if="store.isBusy" class="send-btn stop-btn" @click="store.stopGeneration">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="6" y="6" width="12" height="12" rx="2" fill="#F5F3EE" />
+            </svg>
+          </button>
+          <button v-else class="send-btn" @click="store.send">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M5 10v4M9 7v10M13 5.5v13M17 9v6M21 11v2" stroke="#F5F3EE" stroke-width="1.8" stroke-linecap="round" />
             </svg>
@@ -238,5 +252,9 @@ watch(() => store.input, () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.send-btn.stop-btn {
+  background: #C94E4E;
 }
 </style>

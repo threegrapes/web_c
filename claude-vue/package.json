@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "dompurify": "^3.1.6",
+    "highlight.js": "^11.11.1",
     "marked": "^13.0.3",
+    "marked-highlight": "^2.2.4",
     "pinia": "^2.1.7",
     "vue": "^3.4.31"
   },

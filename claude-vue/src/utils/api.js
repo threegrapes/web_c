@@ -7,6 +7,7 @@
  */
 
 import { CHAT_SERVER_URL } from './constants'
+import { lsGet } from './helpers'
 
 /** 判断是否在开发环境（Vite dev server 会代理 /api） */
 const IS_DEV = import.meta.env.DEV
@@ -17,6 +18,11 @@ function getBaseUrl() {
   return CHAT_SERVER_URL      // 生产环境直连
 }
 
+/** 获取认证 token（如有） */
+function getAuthToken() {
+  return lsGet('auth_token', '')
+}
+
 /** 通用请求函数 */
 async function request(method, path, body = null) {
   const url = getBaseUrl() + path
@@ -24,6 +30,8 @@ async function request(method, path, body = null) {
     method,
     headers: { 'Content-Type': 'application/json' }
   }
+  const token = getAuthToken()
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token
   if (body) opts.body = JSON.stringify(body)
   try {
     const res = await fetch(url, opts)

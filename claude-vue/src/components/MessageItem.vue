@@ -1,9 +1,10 @@
 <script setup>
 import { computed } from 'vue'
-import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { useAppStore } from '@/stores/app'
 import SparkBadge from './SparkBadge.vue'
+import { escapeHtml } from '@/utils/helpers'
+import { markedInstance } from '@/utils/md'
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -16,10 +17,11 @@ const renderedBody = computed(() => {
   if (props.message.isAi) {
     const raw = String(props.message.text || '').trim()
     if (!raw) return ''
-    const dirty = marked.parse(raw, { async: false, gfm: true, breaks: true })
+    const dirty = markedInstance.parse(raw, { async: false, gfm: true, breaks: true })
     return DOMPurify.sanitize(dirty)
   }
-  return String(props.message.text || '').replace(/\n/g, '<br>')
+  // 用户消息：先转义 HTML，再替换换行符，防止 XSS
+  return escapeHtml(String(props.message.text || '')).replace(/\n/g, '<br>')
 })
 </script>
 

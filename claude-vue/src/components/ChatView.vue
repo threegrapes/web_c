@@ -9,13 +9,32 @@ const store = useAppStore()
 const scrollRef = ref(null)
 const showBackBtn = ref(false)
 const userScrolledUp = ref(false)
+const renderLimit = ref(50)
 
 const lastAiIndex = computed(() => {
-  const msgs = store.displayMessages
+  const msgs = visibleMessages.value
   for (let i = msgs.length - 1; i >= 0; i--) {
     if (msgs[i].isAi) return i
   }
   return -1
+})
+
+// 分页：只渲染最近 renderLimit 条消息
+const visibleMessages = computed(() => {
+  const msgs = store.displayMessages
+  if (msgs.length <= renderLimit.value) return msgs
+  return msgs.slice(msgs.length - renderLimit.value)
+})
+
+const hasMoreMessages = computed(() => store.displayMessages.length > renderLimit.value)
+
+function loadMore() {
+  renderLimit.value += 50
+}
+
+// 切换对话时重置分页
+watch(() => store.currentChatId, () => {
+  renderLimit.value = 50
 })
 
 const isAtBottom = () => {
@@ -95,6 +114,10 @@ watch(() => store.messages, scrollToBottom, { deep: true })
       <div ref="scrollRef" class="messages-scroll sa">
         <Welcome v-if="store.showWelcome" />
 
+        <div v-if="!store.showWelcome && hasMoreMessages" class="load-more-row">
+          <button class="load-more-btn" @click="loadMore">加载更早的消息</button>
+        </div>
+
         <div v-if="!store.showWelcome" class="empty-watermark">
           <svg width="64" height="64" viewBox="0 0 64 64" fill="none" class="watermark-icon">
             <path d="M32 4 L34.5 26 L56 16 L38 28.5 L60 32 L38 35.5 L56 48 L34.5 38 L32 60 L29.5 38 L8 48 L26 35.5 L4 32 L26 28.5 L8 16 L29.5 26 Z" fill="#1A1815" />
@@ -103,7 +126,7 @@ watch(() => store.messages, scrollToBottom, { deep: true })
         </div>
 
         <MessageItem
-          v-for="(m, i) in store.displayMessages"
+          v-for="(m, i) in visibleMessages"
           :key="m.sessionId || i"
           :message="m"
           :show-badge="i === lastAiIndex"
@@ -268,5 +291,22 @@ watch(() => store.messages, scrollToBottom, { deep: true })
   box-shadow: 0 0 0 1px rgba(43, 38, 30, 0.08), 0 4px 12px rgba(43, 38, 30, 0.12);
   z-index: 10;
   transition: opacity 0.2s;
+}
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+
+.load-more-btn {
+  border: 1px solid #E7E3DA;
+  background: #FFF;
+  color: #6B665E;
+  border-radius: 16px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
 }
 </style>

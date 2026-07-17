@@ -129,3 +129,41 @@ export function noop() {}
 export function clamp(n, min, max) {
   return Math.min(Math.max(n, min), max)
 }
+
+/** HTML 实体转义，防止用户消息中的 HTML 标签被解析执行 */
+export function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/** 剪贴板复制，带 execCommand 降级，兼容 HTTP 环境 */
+export async function copyToClipboard(text) {
+  if (!text) return false
+  // 优先使用现代 Clipboard API（需 HTTPS 或 localhost）
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // 权限被拒绝或失败，降级
+    }
+  }
+  // 降级方案：隐藏 textarea + execCommand
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}

@@ -44,8 +44,16 @@ const store = useAppStore()
         </div>
       </div>
 
-      <!-- recents label -->
-      <div class="drawer-recents-label">RECENTS</div>
+      <!-- recents label + search -->
+      <div class="drawer-recents-header">
+        <div class="drawer-recents-label">RECENTS</div>
+        <input
+          :value="store.searchQuery"
+          @input="store.searchQueryChange($event.target.value)"
+          placeholder="搜索对话..."
+          class="drawer-search-input"
+        />
+      </div>
 
       <!-- recent chats list -->
       <div class="drawer-recents sa">
@@ -187,12 +195,32 @@ const store = useAppStore()
   background: #EDEAE3;
 }
 
+.drawer-recents-header {
+  padding: 28px 16px 10px;
+}
+
 .drawer-recents-label {
-  padding: 28px 24px 10px;
   font-size: 12px;
   color: #B8B3A8;
   font-weight: 600;
   letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.drawer-search-input {
+  width: 100%;
+  border: 1px solid #E7E3DA;
+  background: #FFF;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #2B2620;
+  outline: none;
+}
+
+.drawer-search-input:focus {
+  border-color: #1A1815;
 }
 
 .drawer-recents {

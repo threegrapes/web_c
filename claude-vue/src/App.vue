@@ -16,6 +16,8 @@ import WorldbookSheet from '@/components/WorldbookSheet.vue'
 import ThoughtSheet from '@/components/ThoughtSheet.vue'
 import Toast from '@/components/Toast.vue'
 import DemoCodeModal from '@/components/DemoCodeModal.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import RenameSheet from '@/components/RenameSheet.vue'
 
 const store = useAppStore()
 
@@ -45,6 +47,8 @@ onMounted(async () => {
     <ThoughtSheet v-else-if="store.isThoughtSheet" />
 
     <DemoCodeModal />
+    <ConfirmDialog />
+    <RenameSheet />
     <Toast />
   </div>
 </template>
@@ -127,6 +131,7 @@ body {
 }
 
 .ai-msg-text pre { background: #2B2620; color: #E7E3DA; border-radius: 10px; padding: 14px 16px; margin: 12px 0; overflow-x: auto; font-size: 14px; line-height: 1.6; }
+.ai-msg-text pre code { background: transparent; padding: 0; font-size: inherit; }
 .ai-msg-text code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: .9em; }
 .ai-msg-text :not(pre) > code { background: #EDEAE3; color: #B33D3D; padding: 2px 6px; border-radius: 5px; font-size: .88em; word-break: break-word; }
 .ai-msg-text table { border-collapse: collapse; margin: 12px 0; width: auto; max-width: 100%; display: block; overflow-x: auto; }

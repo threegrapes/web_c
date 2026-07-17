@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { defineStore } from 'pinia'
-import { lsGet, lsSet, lsGetObj, trimMessages, getMobileGreeting, buildUserMessage, buildAiMessage, buildThinkingPlaceholder, noop } from '@/utils/helpers'
+import { lsGet, lsSet, lsGetObj, trimMessages, getMobileGreeting, buildUserMessage, buildAiMessage, buildThinkingPlaceholder, noop, copyToClipboard, escapeHtml } from '@/utils/helpers'
 import * as C from '@/utils/constants'
 import { fetchChatList, fetchChat, createChat, updateChat, patchChat, deleteChat as apiDeleteChat, fetchSettings, saveSettings } from '@/utils/api'
 import { sparkStartAnim, sparkStopAnim } from '@/utils/sparkAnim'
@@ -56,7 +56,7 @@ export const useAppStore = defineStore('app', {
       name: lsGet(C.LS_API_NAME, 'My API'),
       apiType: lsGet(C.LS_API_TYPE, C.API_TYPES.OPENAI),
       connectorUrl: lsGet(C.LS_API_URL, ''),
-      accessValue: lsGet(C.LS_API_KEY, ''),
+      accessValue: '',
       model: lsGet(C.LS_ACTIVE_MODEL, ''),
       useGateway: false,
       models: lsGetObj(C.LS_MY_MODELS, [])
@@ -105,7 +105,22 @@ export const useAppStore = defineStore('app', {
     chatMenu: null,
 
     // 图片附件
-    attachedImages: []
+    attachedImages: [],
+
+    // 确认弹窗
+    confirmDialog: null,
+
+    // 重命名弹窗
+    renameSheet: null,
+
+    // 搜索
+    searchQuery: '',
+
+    // 请求取消控制器
+    _abortController: null,
+
+    // 上次发送的数据（用于重试）
+    _lastSendData: null
   }),
 
   getters: {
@@ -233,16 +248,23 @@ export const useAppStore = defineStore('app', {
       ]
     },
 
-    displayRecentChats: (s) => (s.recentChats || []).map(c => ({
-      ...c,
-      activeClass: c.id === s.currentChatId ? 'chat-menu-active' : '',
-      bg: c.id === s.currentChatId ? '#EDEAE3' : 'transparent',
-      open: () => s.openChat(c),
-      openMenu: (e) => { e.stopPropagation(); s.showChatMenu(c, e) },
-      touchStart: (e) => s.startLongPress(c, e),
-      touchEnd: () => s.cancelLongPress(),
-      contextMenu: (e) => { e.preventDefault(); s.showChatMenu(c, e) }
-    })),
+    displayRecentChats: (s) => {
+      const q = (s.searchQuery || '').trim().toLowerCase()
+      let list = s.recentChats || []
+      if (q) {
+        list = list.filter(c => (c.title || '').toLowerCase().includes(q))
+      }
+      return list.map(c => ({
+        ...c,
+        activeClass: c.id === s.currentChatId ? 'chat-menu-active' : '',
+        bg: c.id === s.currentChatId ? '#EDEAE3' : 'transparent',
+        open: () => s.openChat(c),
+        openMenu: (e) => { e.stopPropagation(); s.showChatMenu(c, e) },
+        touchStart: (e) => s.startLongPress(c, e),
+        touchEnd: () => s.cancelLongPress(),
+        contextMenu: (e) => { e.preventDefault(); s.showChatMenu(c, e) }
+      }))
+    },
 
     displayMessages: (s) => {
       if ((s.messages || []).length === 0) return []
@@ -263,7 +285,7 @@ export const useAppStore = defineStore('app', {
           return {
             ...m,
             isAi: true,
-            copy: m.copy || (() => { navigator.clipboard.writeText(m.text); s.show('已复制') }),
+            copy: m.copy || (() => { copyToClipboard(m.text); s.show('已复制') }),
             refresh: m.refresh || (() => {
               const idx = s.messages.findIndex(x => x === m)
               if (idx > -1) {
@@ -315,9 +337,8 @@ export const useAppStore = defineStore('app', {
             models: remote.models || []
           }
           this.availableModels = remote.models || []
-          // 同步回 localStorage 兜底
+          // 同步回 localStorage 兜底（API Key 不写入 localStorage）
           lsSet(C.LS_API_URL, remote.apiUrl)
-          lsSet(C.LS_API_KEY, remote.apiKey || '')
           lsSet(C.LS_API_NAME, remote.name || 'My API')
           lsSet(C.LS_API_TYPE, remote.apiType || C.API_TYPES.OPENAI)
           lsSet(C.LS_ACTIVE_MODEL, remote.activeModel || '')
@@ -444,7 +465,7 @@ export const useAppStore = defineStore('app', {
           showUserActions: false,
           showNormal: true,
           showEdit: false,
-          copy: m.copy || (() => { navigator.clipboard.writeText(m.text); this.show('已复制') }),
+          copy: m.copy || (() => { copyToClipboard(m.text); this.show('已复制') }),
           refresh: m.refresh || (() => {
             const idx = this.messages.findIndex(x => x.text === m.text && x.role === 'assistant')
             if (idx > -1) { const msgs = [...this.messages]; msgs.splice(idx, 1); this.messages = msgs; this.sendMessageRegen() }
@@ -507,13 +528,16 @@ export const useAppStore = defineStore('app', {
     // 输入框
     inputChange(value) { this.input = value },
     inputKey(e) {
-      if (e && e.key === 'Enter' && !e.shiftKey) {
+      // isComposing 防止中文输入法选词时回车误触发发送
+      if (e && e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault()
         this.sendMessage()
       }
     },
 
     // 发送消息
+    send(sessionId = '') { return this.sendMessage(sessionId) },
+
     async sendMessage(sessionId = '') {
       const userMessage = String(this.input || '').trim()
       if (!userMessage) return
@@ -645,18 +669,20 @@ export const useAppStore = defineStore('app', {
         return errText
       }
 
+      // 请求超时 + 取消控制
+      this._abortController = new AbortController()
+      const _timeoutId = setTimeout(() => this._abortController?.abort(), 30000)
+
       try {
         let response
         const headers1 = makeHeaders(true)
         const body1 = makeBody(true)
-        console.log('[stream] request body:', body1)
-        const resp1 = await fetch(endpoint, { method: 'POST', headers: headers1, body: JSON.stringify(body1) })
-        console.log('[stream] response status:', resp1.status, 'content-type:', resp1.headers.get('content-type'))
+        const resp1 = await fetch(endpoint, { method: 'POST', headers: headers1, body: JSON.stringify(body1), signal: this._abortController.signal })
         if (!resp1.ok) {
           if (isAnthropic) {
             const headers2 = makeHeaders(false)
             const body2 = makeBody(false)
-            const resp2 = await fetch(endpoint, { method: 'POST', headers: headers2, body: JSON.stringify(body2) })
+            const resp2 = await fetch(endpoint, { method: 'POST', headers: headers2, body: JSON.stringify(body2), signal: this._abortController.signal })
             if (!resp2.ok) throw new Error(await extractError(resp2))
             response = resp2
           } else {
@@ -665,6 +691,9 @@ export const useAppStore = defineStore('app', {
         } else {
           response = resp1
         }
+
+        // 已建立连接，清除超时
+        clearTimeout(_timeoutId)
 
         let aiReply = ''
         let thinkingText = ''
@@ -730,7 +759,7 @@ export const useAppStore = defineStore('app', {
           hasThink: !!thinkingText,
           thinkSummary: thinkingSummary || 'Thought process',
           openThink: thinkingText ? (() => this.openThoughtSheet(thinkingText)) : noop,
-          copy: () => { navigator.clipboard.writeText(aiReply); this.show('已复制') },
+          copy: () => { copyToClipboard(aiReply); this.show('已复制') },
           refresh: () => {
             const idx = this.messages.findIndex(m => m.text === aiReply && m.role === 'assistant')
             if (idx > -1) {
@@ -755,12 +784,19 @@ export const useAppStore = defineStore('app', {
         this._getPending(this.currentChatId).added.push(this._serializeOneMessage(aiMsg))
         // AI 回复完成 → 立即同步到后端
         this.flushCurrentChat()
+        // 成功后清理 abort controller
+        this._abortController = null
       } catch (error) {
-        this.show('连接失败: ' + error.message)
+        clearTimeout(_timeoutId)
+        this._abortController = null
+        const isAbort = error.name === 'AbortError'
+        this.show(isAbort ? '已停止生成' : '连接失败: ' + error.message)
         const cleanedMessages = this.messages.filter(m => m.role !== 'thinking' && !m.isStreaming)
         this.messages = cleanedMessages
         this.isBusy = false
         this.sparkAnim = null
+        // 恢复输入内容，方便用户重试
+        this.input = userMessage
         lsSet(C.LS_MESSAGES, trimMessages(cleanedMessages))
         this.saveCurrentChat(cleanedMessages)
         this.flushCurrentChat()
@@ -862,8 +898,8 @@ export const useAppStore = defineStore('app', {
     saveApiDraft() {
       const draft = this.apiDraft || {}
       if (!draft.connectorUrl || !draft.accessValue) { this.show('URL 和 Key 不能为空'); return }
+      // API Key 不写入 localStorage，仅在内存中保持，由后端加密存储
       lsSet(C.LS_API_URL, draft.connectorUrl)
-      lsSet(C.LS_API_KEY, draft.accessValue)
       lsSet(C.LS_API_NAME, draft.name || 'My API')
       lsSet(C.LS_API_TYPE, draft.apiType || C.API_TYPES.OPENAI)
       lsSet(C.LS_ACTIVE_MODEL, draft.model || '')
@@ -886,17 +922,23 @@ export const useAppStore = defineStore('app', {
     },
 
     deleteApiDraft() {
-      this.apiDraft = { name: '', apiType: C.API_TYPES.OPENAI, connectorUrl: '', accessValue: '', model: '', useGateway: false, models: [] }
-      lsSet(C.LS_API_URL, '')
-      lsSet(C.LS_API_KEY, '')
-      lsSet(C.LS_API_NAME, '')
-      lsSet(C.LS_API_TYPE, C.API_TYPES.OPENAI)
-      lsSet(C.LS_ACTIVE_MODEL, '')
-      // 同步清空后端配置
-      saveSettings({ name: '', apiType: C.API_TYPES.OPENAI, apiUrl: '', apiKey: '', activeModel: '', models: [] })
-        .catch(err => console.warn('[deleteApiDraft] 后端同步失败:', err.message))
-      this.show('API 配置已清空')
-      this.closeSheet()
+      this.confirmDialog = {
+        show: true,
+        title: '清空 API 配置',
+        message: '确定要清空当前 API 配置吗？将同时删除后端存储的配置。',
+        confirmText: '清空',
+        onConfirm: () => {
+          this.apiDraft = { name: '', apiType: C.API_TYPES.OPENAI, connectorUrl: '', accessValue: '', model: '', useGateway: false, models: [] }
+          lsSet(C.LS_API_URL, '')
+          lsSet(C.LS_API_NAME, '')
+          lsSet(C.LS_API_TYPE, C.API_TYPES.OPENAI)
+          lsSet(C.LS_ACTIVE_MODEL, '')
+          saveSettings({ name: '', apiType: C.API_TYPES.OPENAI, apiUrl: '', apiKey: '', activeModel: '', models: [] })
+            .catch(err => console.warn('[deleteApiDraft] 后端同步失败:', err.message))
+          this.show('API 配置已清空')
+          this.closeSheet()
+        }
+      }
     },
 
     newApiDraft() {
@@ -1273,60 +1315,74 @@ export const useAppStore = defineStore('app', {
     },
 
     async deleteChat(chat) {
-      // 后端删除
-      if (this.serverConnected) {
-        try {
-          await apiDeleteChat(chat.id)
-        } catch (err) {
-          console.warn('[deleteChat] 后端删除失败:', err.message)
-        }
-      }
+      this.confirmDialog = {
+        show: true,
+        title: '删除对话',
+        message: `确定要删除"${chat.title}"吗？此操作不可撤销。`,
+        confirmText: '删除',
+        onConfirm: async () => {
+          // 后端删除
+          if (this.serverConnected) {
+            try {
+              await apiDeleteChat(chat.id)
+            } catch (err) {
+              console.warn('[deleteChat] 后端删除失败:', err.message)
+            }
+          }
 
-      let list = this.recentChats.filter(c => c.id !== chat.id)
-      if (list.length === 0) {
-        const newId = 'chat_' + Date.now()
-        const newChatObj = { id: newId, title: '当前对话', messages: [] }
-        list = [newChatObj]
-        if (this.serverConnected) {
-          try { await createChat(newId, '当前对话', []) } catch {}
+          let list = this.recentChats.filter(c => c.id !== chat.id)
+          if (list.length === 0) {
+            const newId = 'chat_' + Date.now()
+            const newChatObj = { id: newId, title: '当前对话', messages: [] }
+            list = [newChatObj]
+            if (this.serverConnected) {
+              try { await createChat(newId, '当前对话', []) } catch { console.warn('[deleteChat] 创建替代对话失败') }
+            }
+          }
+          if (chat.id === this.currentChatId) {
+            if (this.serverConnected) {
+              try {
+                const data = await fetchChat(list[0].id)
+                this.messages = (data?.messages || []).map(m => this._restoreMessageCallbacks(m))
+              } catch { this.messages = [] }
+            } else {
+              this.messages = list[0].messages || []
+            }
+            this.input = ''
+            this.recentChats = list
+            this.currentChatId = list[0].id
+            this.chatMenu = null
+            lsSet(C.LS_MESSAGES, this.messages)
+            lsSet(C.LS_CURRENT_CHAT_ID, list[0].id)
+          } else {
+            this.recentChats = list
+            this.chatMenu = null
+          }
+          lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
+          this.show('已删除对话')
         }
       }
-      if (chat.id === this.currentChatId) {
-        if (this.serverConnected) {
-          // 从后端加载替代对话的消息
-          try {
-            const data = await fetchChat(list[0].id)
-            this.messages = (data?.messages || []).map(m => this._restoreMessageCallbacks(m))
-          } catch { this.messages = [] }
-        } else {
-          this.messages = list[0].messages || []
-        }
-        this.input = ''
-        this.recentChats = list
-        this.currentChatId = list[0].id
-        this.chatMenu = null
-        lsSet(C.LS_MESSAGES, this.messages)
-        lsSet(C.LS_CURRENT_CHAT_ID, list[0].id)
-      } else {
-        this.recentChats = list
-        this.chatMenu = null
-      }
-      lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
     },
 
     async renameChat(chat) {
-      const newTitle = window.prompt('重命名对话', chat.title)
-      if (!newTitle || !newTitle.trim()) return
-      const list = this.recentChats.map(c => c.id === chat.id ? { ...c, title: newTitle.trim() } : c)
-      this.recentChats = list
-      this.chatMenu = null
-      lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
-      // 同步标题到后端
-      if (this.serverConnected) {
-        try {
-          await updateChat(chat.id, newTitle.trim(), null)
-        } catch (err) {
-          console.warn('[renameChat] 后端更新标题失败:', err.message)
+      this.renameSheet = {
+        show: true,
+        title: '重命名对话',
+        value: chat.title,
+        placeholder: '请输入对话名称',
+        onConfirm: async (newTitle) => {
+          if (!newTitle || !newTitle.trim()) return
+          const list = this.recentChats.map(c => c.id === chat.id ? { ...c, title: newTitle.trim() } : c)
+          this.recentChats = list
+          this.chatMenu = null
+          lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
+          if (this.serverConnected) {
+            try {
+              await updateChat(chat.id, newTitle.trim(), null)
+            } catch (err) {
+              console.warn('[renameChat] 后端更新标题失败:', err.message)
+            }
+          }
         }
       }
     },
@@ -1503,6 +1559,84 @@ export const useAppStore = defineStore('app', {
       }
       // 编辑后立即同步到后端
       this.flushCurrentChat()
+    },
+
+    // ======== 弹窗控制 ========
+    closeConfirmDialog() { this.confirmDialog = null },
+    closeRenameSheet() { this.renameSheet = null },
+
+    // ======== 搜索 ========
+    searchQueryChange(value) { this.searchQuery = value },
+    clearSearch() { this.searchQuery = '' },
+
+    // ======== 停止生成 ========
+    stopGeneration() {
+      if (this._abortController) {
+        this._abortController.abort()
+        this._abortController = null
+      }
+    },
+
+    // ======== 导出/导入 ========
+    exportData() {
+      const data = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        chats: this.recentChats.map(c => ({ id: c.id, title: c.title })),
+        messages: this._serializeMessages(),
+        currentChatId: this.currentChatId,
+        personas: lsGetObj(C.LS_PERSONAS, []),
+        promptTemplates: lsGetObj(C.LS_PROMPTS, []),
+        styleDraft: this.styleDraft,
+        wbDraft: this.wbDraft,
+        apiDraft: { ...this.apiDraft, accessValue: undefined } // 不导出 API Key
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `companion-export-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      this.show('已导出数据')
+    },
+
+    async importData(file) {
+      if (!file) { this.show('请选择文件'); return }
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        if (!data || typeof data !== 'object') { this.show('文件格式无效'); return }
+        if (Array.isArray(data.messages)) {
+          this.messages = data.messages.map(m => this._restoreMessageCallbacks(m))
+          lsSet(C.LS_MESSAGES, this.messages)
+        }
+        if (Array.isArray(data.personas)) {
+          this.personas = data.personas
+          lsSet(C.LS_PERSONAS, data.personas)
+        }
+        if (Array.isArray(data.promptTemplates)) {
+          this.promptTemplates = data.promptTemplates
+          lsSet(C.LS_PROMPTS, data.promptTemplates)
+        }
+        if (data.styleDraft) {
+          this.styleDraft = data.styleDraft
+          lsSet(C.LS_STYLE_TITLE, data.styleDraft.title || '')
+          lsSet(C.LS_STYLE_CONTENT, data.styleDraft.content || '')
+        }
+        if (data.wbDraft) {
+          this.wbDraft = data.wbDraft
+          lsSet(C.LS_WB_PERM, data.wbDraft.permanent || '')
+          lsSet(C.LS_WB_TRIGGERS, data.wbDraft.triggersText || '')
+        }
+        this.saveCurrentChat(this.messages)
+        this.flushCurrentChat()
+        this.show('已导入数据')
+      } catch (err) {
+        this.show('导入失败: ' + err.message)
+      }
     }
   }
 })

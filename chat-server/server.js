@@ -24,6 +24,24 @@ if (!fs.existsSync(CONFIG_DIR)) {
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 
+// ============ 简易认证 ============
+// 个人项目：从环境变量读取 token，未设置时跳过认证（开发模式）
+const AUTH_TOKEN = process.env.AUTH_TOKEN || ''
+const PUBLIC_PATHS = new Set()
+
+function authMiddleware(req, res, next) {
+  if (!AUTH_TOKEN) return next() // 未设置 token 则不启用认证
+  // 读取 header 或 query 中的 token
+  const token = req.headers['authorization']?.replace('Bearer ', '') || req.query.token || req.headers['x-auth-token']
+  if (token !== AUTH_TOKEN) {
+    return res.status(401).json({ success: false, error: '未授权' })
+  }
+  next()
+}
+
+// 对所有 /api 路由启用认证
+app.use('/api', authMiddleware)
+
 // ============ 工具函数 ============
 
 /** 校验对话 ID，只允许字母、数字、下划线、连字符 */

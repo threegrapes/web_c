@@ -68,7 +68,8 @@ onUnmounted(stopAnim)
 const cfg = computed(() => getConfig(currentAnim.value))
 const viewBox = computed(() => {
   if (isAnimating.value && cfg.value) {
-    return '0 {frame.value * cfg.value.frameHeight} 100 {cfg.value.frameHeight}'.replace(/{([^}]*)}/g, (_, expr) => eval(expr))
+    const offset = frame.value * cfg.value.frameHeight
+    return `0 ${offset} 100 ${cfg.value.frameHeight}`
   }
   return '0 0 100 100'
 })

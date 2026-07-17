@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { lsGet, lsSet, lsGetObj, trimMessages, getMobileGreeting, buildUserMessage, buildAiMessage, buildThinkingPlaceholder, noop } from '@/utils/helpers'
 import * as C from '@/utils/constants'
+import { fetchChatList, fetchChat, createChat, updateChat, patchChat, deleteChat as apiDeleteChat, fetchSettings, saveSettings } from '@/utils/api'
 import { sparkStartAnim, sparkStopAnim } from '@/utils/sparkAnim'
 
 /**
@@ -88,6 +89,17 @@ export const useAppStore = defineStore('app', {
     // 最近对话
     recentChats: [],
     currentChatId: 'current',
+
+    // 后端连接状态
+    serverConnected: false,
+    _syncTimer: null,
+    _reconnectTimer: null,
+
+    // 服务端 version 缓存（chatId -> version）
+    _chatVersions: {},
+
+    // 增量同步变更集（chatId -> { added, deleted, edited }）
+    _chatPending: {},
 
     // 聊天上下文菜单
     chatMenu: null,
@@ -287,21 +299,162 @@ export const useAppStore = defineStore('app', {
   },
 
   actions: {
-    // 生命周期初始化
-    init() {
-      let recents = lsGetObj(C.LS_RECENTS, null)
-      let currentId = lsGet(C.LS_CURRENT_CHAT_ID, null)
-      if (!recents || !recents.length) {
-        recents = [{ id: 'current', title: '当前对话', messages: lsGetObj(C.LS_MESSAGES, []) }]
-        currentId = 'current'
+    // 生命周期初始化：从后端拉取数据，后端不可用时回退到 localStorage
+    async init() {
+      // 加载用户 API 配置：后端有则覆盖本地，后端无则把本地现有配置同步上去
+      try {
+        const remote = await fetchSettings()
+        if (remote && remote.apiUrl) {
+          this.apiDraft = {
+            name: remote.name || 'My API',
+            apiType: remote.apiType || C.API_TYPES.OPENAI,
+            connectorUrl: remote.apiUrl,
+            accessValue: remote.apiKey || '',
+            model: remote.activeModel || '',
+            useGateway: false,
+            models: remote.models || []
+          }
+          this.availableModels = remote.models || []
+          // 同步回 localStorage 兜底
+          lsSet(C.LS_API_URL, remote.apiUrl)
+          lsSet(C.LS_API_KEY, remote.apiKey || '')
+          lsSet(C.LS_API_NAME, remote.name || 'My API')
+          lsSet(C.LS_API_TYPE, remote.apiType || C.API_TYPES.OPENAI)
+          lsSet(C.LS_ACTIVE_MODEL, remote.activeModel || '')
+          lsSet(C.LS_MY_MODELS, remote.models || [])
+        } else if (this.apiDraft && this.apiDraft.connectorUrl) {
+          // 后端无配置但本地有，迁移到后端
+          await saveSettings({
+            name: this.apiDraft.name,
+            apiType: this.apiDraft.apiType,
+            apiUrl: this.apiDraft.connectorUrl,
+            apiKey: this.apiDraft.accessValue,
+            activeModel: this.apiDraft.model,
+            models: this.apiDraft.models || this.availableModels || []
+          })
+        }
+      } catch (err) {
+        console.warn('[init] 加载 API 配置失败:', err.message)
       }
+      try {
+        const chatList = await fetchChatList()
+        if (chatList && chatList.length > 0) {
+          // 后端有数据，优先使用
+          this.serverConnected = true
+          this.recentChats = chatList.map(c => ({
+            id: c.id,
+            title: c.title,
+            messages: []  // 消息内容按需加载，列表只存元数据
+          }))
+          // 确定当前对话：优先使用 localStorage 记录的 ID，否则取列表第一个
+          let currentId = lsGet(C.LS_CURRENT_CHAT_ID, null)
+          const found = this.recentChats.find(c => c.id === currentId)
+          if (!found) currentId = this.recentChats[0].id
+          this.currentChatId = currentId
+          // 加载当前对话的消息
+          await this.loadChatMessages(currentId)
+          lsSet(C.LS_CURRENT_CHAT_ID, currentId)
+        } else {
+          // 后端无数据，可能是首次使用或后端刚启动
+          this.serverConnected = true
+          // 尝试从 localStorage 迁移旧数据到后端
+          const oldRecents = lsGetObj(C.LS_RECENTS, null)
+          if (oldRecents && oldRecents.length > 0) {
+            for (const c of oldRecents) {
+              try {
+                await createChat(c.id, c.title, c.messages || [])
+                this.recentChats.push({ id: c.id, title: c.title, messages: [] })
+              } catch {}
+            }
+            if (this.recentChats.length > 0) {
+              this.currentChatId = this.recentChats[0].id
+              await this.loadChatMessages(this.currentChatId)
+            }
+          } else {
+            // 完全没有历史数据，创建一个初始对话
+            const newId = 'chat_' + Date.now()
+            try {
+              await createChat(newId, '当前对话', [])
+              this.recentChats = [{ id: newId, title: '当前对话', messages: [] }]
+              this.currentChatId = newId
+              this.messages = []
+            } catch {}
+          }
+          lsSet(C.LS_CURRENT_CHAT_ID, this.currentChatId)
+        }
+      } catch (err) {
+        // 后端不可用，回退到 localStorage（兼容模式）
+        console.warn('[init] 后端不可用，回退 localStorage:', err.message)
+        this.serverConnected = false
+        let recents = lsGetObj(C.LS_RECENTS, null)
+        let currentId = lsGet(C.LS_CURRENT_CHAT_ID, null)
+        if (!recents || !recents.length) {
+          recents = [{ id: 'current', title: '当前对话', messages: lsGetObj(C.LS_MESSAGES, []) }]
+          currentId = 'current'
+        }
       const currentChat = recents.find(c => c.id === currentId) || recents[0]
-      this.messages = currentChat.messages || []
+      this.messages = lsGetObj(C.LS_MESSAGES, []) || currentChat.messages || []
       this.recentChats = recents
-      this.currentChatId = currentChat.id
-      lsSet(C.LS_RECENTS, recents)
-      lsSet(C.LS_CURRENT_CHAT_ID, currentChat.id)
-      lsSet(C.LS_MESSAGES, currentChat.messages || [])
+        this.currentChatId = currentChat.id
+        lsSet(C.LS_RECENTS, recents)
+        lsSet(C.LS_CURRENT_CHAT_ID, currentChat.id)
+        lsSet(C.LS_MESSAGES, currentChat.messages || [])
+        // 后端不可用，启动自动重连检测
+        this.startReconnectTimer()
+      }
+      // 启动定时同步
+      this.startSyncTimer()
+      // 页面关闭前先同步写 localStorage 兜底，再尝试同步后端
+      window.addEventListener('beforeunload', () => {
+        lsSet(C.LS_MESSAGES, this._serializeMessages())
+        this.flushCurrentChat()
+      })
+    },
+
+    /** 从后端加载指定对话的消息 */
+    async loadChatMessages(chatId) {
+      if (!this.serverConnected) return
+      try {
+        const data = await fetchChat(chatId)
+        if (data) {
+          this.messages = (data.messages || []).map(m => this._restoreMessageCallbacks(m))
+          lsSet(C.LS_MESSAGES, this.messages)
+          // 记录服务端 version
+          if (typeof data.version === 'number') {
+            this._chatVersions[chatId] = data.version
+          }
+          // 从服务端拉取后，本地变更集已包含在 messages 中，清空 pending
+          this._clearPending(chatId)
+        }
+      } catch (err) {
+        console.warn('[loadChatMessages] 加载失败:', err.message)
+      }
+    },
+
+    /** 恢复消息对象中的回调函数（JSON 序列化会丢失函数） */
+    _restoreMessageCallbacks(m) {
+      if (m.role === 'user' || m.align === 'flex-end') {
+        return { ...m, showActions: false, showUserActions: true, showNormal: true, showEdit: false }
+      }
+      if (m.role === 'assistant' || m.align === 'flex-start') {
+        return {
+          ...m,
+          isAi: true,
+          showActions: true,
+          showUserActions: false,
+          showNormal: true,
+          showEdit: false,
+          copy: m.copy || (() => { navigator.clipboard.writeText(m.text); this.show('已复制') }),
+          refresh: m.refresh || (() => {
+            const idx = this.messages.findIndex(x => x.text === m.text && x.role === 'assistant')
+            if (idx > -1) { const msgs = [...this.messages]; msgs.splice(idx, 1); this.messages = msgs; this.sendMessageRegen() }
+          }),
+          prev: m.prev || (() => this.show('无更多版本')),
+          next: m.next || (() => this.show('无更多版本')),
+          openThink: m.openThink || (m.thinkSummary ? (() => this.openThoughtSheet(m.text)) : noop)
+        }
+      }
+      return m
     },
 
     // 同步精灵动画到 DOM（已迁移到 SparkBadge.vue 内部管理）
@@ -361,7 +514,7 @@ export const useAppStore = defineStore('app', {
     },
 
     // 发送消息
-    async sendMessage() {
+    async sendMessage(sessionId = '') {
       const userMessage = String(this.input || '').trim()
       if (!userMessage) return
       const draft = this.apiDraft || {}
@@ -371,9 +524,9 @@ export const useAppStore = defineStore('app', {
       if (!apiUrl || !apiKey) { this.show('请先在 API settings 中填写 URL 和 Key'); this.openApiSheet(); return }
       if (!model) { this.show('请先选择或输入一个模型'); this.openApiSheet(); return }
 
-      const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
+      const finalSessionId = sessionId || ('session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
       const attachedImages = this.attachedImages || []
-      const userMsg = buildUserMessage(userMessage, attachedImages, sessionId)
+      const userMsg = buildUserMessage(userMessage, attachedImages, finalSessionId)
       const thinkingPlaceholder = buildThinkingPlaceholder()
       const newMessages = [...this.messages, userMsg, thinkingPlaceholder]
 
@@ -382,6 +535,8 @@ export const useAppStore = defineStore('app', {
       this.isBusy = true
       this.sparkAnim = 'waiting'
       this.attachedImages = []
+      // 记录待同步的 user 消息
+      this._getPending(this.currentChatId).added.push(this._serializeOneMessage(userMsg))
       lsSet(C.LS_MESSAGES, trimMessages(newMessages.filter(m => m.role !== 'thinking')))
 
       const apiMessages = []
@@ -519,7 +674,7 @@ export const useAppStore = defineStore('app', {
         let streamIdx = this.messages.findIndex(m => m.role === 'thinking')
         if (streamIdx > -1) {
           const msgs = [...this.messages]
-          msgs[streamIdx] = buildAiMessage('', { showActions: false, isStreaming: true })
+          msgs[streamIdx] = buildAiMessage('', finalSessionId, { showActions: false, isStreaming: true })
           this.messages = msgs
         }
         this.sparkAnim = 'writing'
@@ -571,8 +726,7 @@ export const useAppStore = defineStore('app', {
           thinkingSummary = firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine
         }
 
-        const aiMsg = buildAiMessage(aiReply, {
-          sessionId,
+        const aiMsg = buildAiMessage(aiReply, finalSessionId, {
           hasThink: !!thinkingText,
           thinkSummary: thinkingSummary || 'Thought process',
           openThink: thinkingText ? (() => this.openThoughtSheet(thinkingText)) : noop,
@@ -597,6 +751,10 @@ export const useAppStore = defineStore('app', {
         this.sparkAnim = null
         lsSet(C.LS_MESSAGES, trimMessages(msgs))
         this.saveCurrentChat(msgs)
+        // 记录待同步的 AI 消息
+        this._getPending(this.currentChatId).added.push(this._serializeOneMessage(aiMsg))
+        // AI 回复完成 → 立即同步到后端
+        this.flushCurrentChat()
       } catch (error) {
         this.show('连接失败: ' + error.message)
         const cleanedMessages = this.messages.filter(m => m.role !== 'thinking' && !m.isStreaming)
@@ -605,6 +763,7 @@ export const useAppStore = defineStore('app', {
         this.sparkAnim = null
         lsSet(C.LS_MESSAGES, trimMessages(cleanedMessages))
         this.saveCurrentChat(cleanedMessages)
+        this.flushCurrentChat()
       }
     },
 
@@ -614,16 +773,27 @@ export const useAppStore = defineStore('app', {
       if (!lastUserMsg) { this.show('没有可重新生成的消息'); return }
       this.messages = cleanMsgs
       this.input = lastUserMsg.text
-      await this.sendMessage()
+      // 复用原 sessionId，确保重新生成的 AI 回复与旧 user 消息仍是一对
+      await this.sendMessage(lastUserMsg.sessionId)
     },
 
-    deleteSession(sessionId) {
+    async deleteSession(sessionId) {
       if (!sessionId) { this.show('无法删除：缺少 sessionId'); return }
+      // 本地立即删除
       const remaining = this.messages.filter(m => m.sessionId !== sessionId)
       this.messages = remaining
       lsSet(C.LS_MESSAGES, trimMessages(remaining.filter(m => m.role !== 'thinking')))
       this.saveCurrentChat(remaining)
       this.show('已删除该轮对话')
+      // 记录到增量变更集：移除同 sessionId 的 added/edited，加入 deleted
+      const pending = this._getPending(this.currentChatId)
+      pending.added = pending.added.filter(m => m.sessionId !== sessionId)
+      pending.edited = pending.edited.filter(e => e.sessionId !== sessionId)
+      if (!pending.deleted.includes(sessionId)) {
+        pending.deleted.push(sessionId)
+      }
+      // 立即同步到后端
+      this.flushCurrentChat()
     },
 
     // API 模型管理
@@ -702,6 +872,15 @@ export const useAppStore = defineStore('app', {
       this.availableModels = trimmedModels
       this.apiDraft = { ...(this.apiDraft || {}), models: trimmedModels }
       lsSet(C.LS_MY_MODELS, trimmedModels)
+      // 同步到后端（apiKey 加密存储）
+      saveSettings({
+        name: draft.name || 'My API',
+        apiType: draft.apiType || C.API_TYPES.OPENAI,
+        apiUrl: draft.connectorUrl,
+        apiKey: draft.accessValue,
+        activeModel: draft.model || '',
+        models: trimmedModels
+      }).catch(err => console.warn('[saveApiDraft] 后端同步失败:', err.message))
       this.show('API 配置已保存')
       this.closeSheet()
     },
@@ -713,6 +892,9 @@ export const useAppStore = defineStore('app', {
       lsSet(C.LS_API_NAME, '')
       lsSet(C.LS_API_TYPE, C.API_TYPES.OPENAI)
       lsSet(C.LS_ACTIVE_MODEL, '')
+      // 同步清空后端配置
+      saveSettings({ name: '', apiType: C.API_TYPES.OPENAI, apiUrl: '', apiKey: '', activeModel: '', models: [] })
+        .catch(err => console.warn('[deleteApiDraft] 后端同步失败:', err.message))
       this.show('API 配置已清空')
       this.closeSheet()
     },
@@ -776,7 +958,221 @@ export const useAppStore = defineStore('app', {
       this.attachedImages = []
     },
 
-    // 最近对话管理
+    // ======== 同步机制 ========
+
+    /** 启动定时同步 */
+    startSyncTimer() {
+      if (this._syncTimer) clearInterval(this._syncTimer)
+      this._syncTimer = setInterval(() => this.syncToServer(), C.SYNC_INTERVAL)
+    },
+
+    /** 停止定时同步 */
+    stopSyncTimer() {
+      if (this._syncTimer) { clearInterval(this._syncTimer); this._syncTimer = null }
+    },
+
+    /** 启动后端重连检测 */
+    startReconnectTimer() {
+      if (this._reconnectTimer) clearInterval(this._reconnectTimer)
+      this._reconnectTimer = setInterval(() => this.checkServer(), 30000)
+    },
+
+    /** 停止后端重连检测 */
+    stopReconnectTimer() {
+      if (this._reconnectTimer) { clearInterval(this._reconnectTimer); this._reconnectTimer = null }
+    },
+
+    /** 检测后端是否恢复，并重新进入同步模式 */
+    async checkServer() {
+      try {
+        const chatList = await fetchChatList()
+        if (!this.serverConnected) {
+          console.log('[checkServer] 后端已恢复')
+          this.serverConnected = true
+          this.stopReconnectTimer()
+          // 重新初始化列表与当前对话消息
+          const currentId = this.currentChatId
+          this.recentChats = chatList.map(c => ({ id: c.id, title: c.title, messages: [] }))
+          const found = this.recentChats.find(c => c.id === currentId)
+          if (found) {
+            await this.loadChatMessages(currentId)
+          } else if (this.recentChats.length > 0) {
+            this.currentChatId = this.recentChats[0].id
+            await this.loadChatMessages(this.currentChatId)
+            lsSet(C.LS_CURRENT_CHAT_ID, this.currentChatId)
+          }
+          this.startSyncTimer()
+        }
+      } catch (err) {
+        // 后端仍然不可用，保持降级模式
+        this.serverConnected = false
+      }
+    },
+
+    /** 定时同步：将当前对话的消息写入后端 */
+    async syncToServer() {
+      if (!this.serverConnected || !this.currentChatId || this.isBusy) return
+      try {
+        await this._syncToServerImpl(this.currentChatId, false)
+      } catch (err) {
+        console.warn('[syncToServer] 同步失败:', err.message)
+        // 如果后端可能断开，启动重连检测
+        if (!this._reconnectTimer) this.startReconnectTimer()
+      }
+    },
+
+    /** 立即同步当前对话到后端（关键事件触发） */
+    async flushCurrentChat() {
+      if (!this.serverConnected || !this.currentChatId) return
+      try {
+        await this._syncToServerImpl(this.currentChatId, true)
+      } catch (err) {
+        console.warn('[flushCurrentChat] 同步失败:', err.message)
+      }
+    },
+
+    /** 真正的同步实现：优先 PATCH 增量同步，冲突时回退全量 PUT */
+    async _syncToServerImpl(chatId, isFlush) {
+      if (!chatId) return
+      const localTitle = this._currentTitle()
+      const pending = this._getPending(chatId)
+      const hasPending = pending.added.length > 0 || pending.deleted.length > 0 || pending.edited.length > 0
+
+      let serverData = null
+      try {
+        serverData = await fetchChat(chatId)
+      } catch (err) {
+        console.warn('[_syncToServerImpl] 拉取最新数据失败:', err.message)
+      }
+
+      let versionToSend = this._chatVersions[chatId]
+
+      // 服务端版本更新，需要全量合并
+      if (serverData && typeof serverData.version === 'number') {
+        const serverVersion = serverData.version
+        if (typeof versionToSend !== 'number' || serverVersion > versionToSend) {
+          const localMessages = this._serializeMessages()
+          const merged = this._mergeMessages(localMessages, serverData.messages)
+          this.messages = merged.map(m => this._restoreMessageCallbacks(m))
+          lsSet(C.LS_MESSAGES, this.messages)
+          this.saveCurrentChat(this.messages)
+          const updated = await updateChat(chatId, localTitle, this._serializeMessages(), serverVersion)
+          if (updated && typeof updated.version === 'number') {
+            this._chatVersions[chatId] = updated.version
+          }
+          this._clearPending(chatId)
+          if (isFlush) this.show('已合并其他页面的更新')
+          return
+        }
+      }
+
+      // version 一致，优先 PATCH 增量同步
+      if (hasPending) {
+        try {
+          const updated = await patchChat(chatId, versionToSend, {
+            title: localTitle,
+            added: pending.added,
+            deleted: pending.deleted,
+            edited: pending.edited
+          })
+          if (updated && typeof updated.version === 'number') {
+            this._chatVersions[chatId] = updated.version
+          }
+          this._clearPending(chatId)
+          return
+        } catch (err) {
+          console.warn('[_syncToServerImpl] 增量同步失败，回退全量:', err.message)
+        }
+      }
+
+      // 没有 pending 或增量失败，用全量兜底
+      const updated = await updateChat(chatId, localTitle, this._serializeMessages(), versionToSend)
+      if (updated && typeof updated.version === 'number') {
+        this._chatVersions[chatId] = updated.version
+      }
+      this._clearPending(chatId)
+    },
+
+    /** 合并本地和服务端消息，以 sessionId 为键，本地优先 */
+    _mergeMessages(local, remote) {
+      const map = new Map()
+      for (const m of remote) {
+        if (m.sessionId) map.set(m.sessionId, m)
+      }
+      for (const m of local) {
+        if (m.sessionId) map.set(m.sessionId, m)
+      }
+      const result = []
+      const seen = new Set()
+      for (const m of [...remote, ...local]) {
+        if (!m.sessionId) {
+          result.push(m)
+          continue
+        }
+        if (!seen.has(m.sessionId)) {
+          seen.add(m.sessionId)
+          result.push(map.get(m.sessionId))
+        }
+      }
+      return result
+    },
+
+    /** 获取当前对话的标题 */
+    _currentTitle() {
+      const firstUser = this.messages.find(m => m.role === 'user' || m.align === 'flex-end')
+      let title = '当前对话'
+      if (firstUser && firstUser.text) {
+        const t = String(firstUser.text).trim()
+        if (t) title = t.length > 20 ? t.slice(0, 20) + '...' : t
+      }
+      return title
+    },
+
+    /** 序列化单条消息 */
+    _serializeOneMessage(m) {
+      if (!m || m.role === 'thinking') return null
+      const clean = {
+        role: m.role,
+        text: m.text,
+        sessionId: m.sessionId || '',
+        align: m.align,
+        hasImages: m.hasImages || false,
+        imageCount: m.imageCount || 0,
+        hasThink: m.hasThink || false,
+        thinkSummary: m.thinkSummary || ''
+      }
+      if (m.role === 'assistant') {
+        clean.isAi = true
+        clean.variantText = m.variantText || '1 / 1'
+      }
+      return clean
+    },
+
+    /** 序列化消息：去掉回调函数和 UI 状态属性，只保留业务数据 */
+    _serializeMessages() {
+      return (this.messages || []).map(m => this._serializeOneMessage(m)).filter(Boolean)
+    },
+
+    /** 获取指定对话的待同步变更集 */
+    _getPending(chatId) {
+      if (!chatId) return { added: [], deleted: [], edited: [] }
+      if (!this._chatPending[chatId]) {
+        this._chatPending[chatId] = { added: [], deleted: [], edited: [] }
+      }
+      return this._chatPending[chatId]
+    },
+
+    /** 清空指定对话的待同步变更集 */
+    _clearPending(chatId) {
+      if (chatId) {
+        this._chatPending[chatId] = { added: [], deleted: [], edited: [] }
+      } else {
+        this._chatPending = {}
+      }
+    },
+
+    // ======== 最近对话管理 ========
+
     buildSavedRecents() {
       const { messages, currentChatId, recentChats } = this
       return recentChats.map(c => {
@@ -809,70 +1205,130 @@ export const useAppStore = defineStore('app', {
         return c
       })
       this.recentChats = list
-      lsSet(C.LS_RECENTS, list)
+      // localStorage 只存轻量元数据列表，不再存全量消息
+      const metaList = list.map(c => ({ id: c.id, title: c.title, messages: [] }))
+      lsSet(C.LS_RECENTS, metaList)
+      // 当前对话的消息仍保留一份在 localStorage 作为缓冲
+      lsSet(C.LS_MESSAGES, trimMessages(msgs.filter(m => m.role !== 'thinking')))
     },
 
-    newChat() {
+    async newChat() {
+      // 先把当前对话同步到后端
+      await this.flushCurrentChat()
+      const newId = 'chat_' + Date.now()
+      const newChatObj = { id: newId, title: '当前对话', messages: [] }
+
+      // 在后端创建
+      if (this.serverConnected) {
+        try {
+          await createChat(newId, '当前对话', [])
+        } catch (err) {
+          console.warn('[newChat] 后端创建失败:', err.message)
+        }
+      }
+
+      // 更新列表
       const hasMessages = (this.messages || []).length > 0
       const list = hasMessages ? this.buildSavedRecents() : this.recentChats.filter(c => c.id !== this.currentChatId)
-      const newId = 'chat_' + Date.now()
-      const newChat = { id: newId, title: '当前对话', messages: [] }
-      const newList = [newChat, ...list]
+      const newList = [newChatObj, ...list]
       this.messages = []
       this.input = ''
       this.recentChats = newList
       this.currentChatId = newId
       this.drawer = false
       lsSet(C.LS_MESSAGES, [])
-      lsSet(C.LS_RECENTS, newList)
+      lsSet(C.LS_RECENTS, newList.map(c => ({ id: c.id, title: c.title, messages: [] })))
       lsSet(C.LS_CURRENT_CHAT_ID, newId)
       this.show('新对话已开始')
     },
 
-    openChat(chat) {
+    async openChat(chat) {
       if (chat.id === this.currentChatId) { this.drawer = false; return }
-      const hasMessages = (this.messages || []).length > 0
-      const list = hasMessages ? this.buildSavedRecents() : this.recentChats.filter(c => c.id !== this.currentChatId)
-      const target = list.find(c => c.id === chat.id)
-      if (!target) return
-      this.messages = target.messages || []
+      // 先把当前对话同步到后端
+      await this.flushCurrentChat()
+
+      // 从后端加载目标对话的消息
+      if (this.serverConnected) {
+        try {
+          const data = await fetchChat(chat.id)
+          if (data) {
+            this.messages = (data.messages || []).map(m => this._restoreMessageCallbacks(m))
+          }
+        } catch (err) {
+          console.warn('[openChat] 后端加载失败:', err.message)
+          // 回退：从 recentChats 列表取（仅适用于有本地缓冲的情况）
+          const target = this.recentChats.find(c => c.id === chat.id)
+          this.messages = target?.messages || []
+        }
+      } else {
+        const target = this.recentChats.find(c => c.id === chat.id)
+        this.messages = target?.messages || []
+      }
+
       this.input = ''
-      this.recentChats = list
-      this.currentChatId = target.id
+      this.currentChatId = chat.id
       this.drawer = false
-      lsSet(C.LS_MESSAGES, target.messages || [])
-      lsSet(C.LS_RECENTS, list)
-      lsSet(C.LS_CURRENT_CHAT_ID, target.id)
+      lsSet(C.LS_MESSAGES, this.messages)
+      lsSet(C.LS_CURRENT_CHAT_ID, chat.id)
     },
 
-    deleteChat(chat) {
+    async deleteChat(chat) {
+      // 后端删除
+      if (this.serverConnected) {
+        try {
+          await apiDeleteChat(chat.id)
+        } catch (err) {
+          console.warn('[deleteChat] 后端删除失败:', err.message)
+        }
+      }
+
       let list = this.recentChats.filter(c => c.id !== chat.id)
       if (list.length === 0) {
         const newId = 'chat_' + Date.now()
-        list = [{ id: newId, title: '当前对话', messages: [] }]
+        const newChatObj = { id: newId, title: '当前对话', messages: [] }
+        list = [newChatObj]
+        if (this.serverConnected) {
+          try { await createChat(newId, '当前对话', []) } catch {}
+        }
       }
       if (chat.id === this.currentChatId) {
-        this.messages = list[0].messages || []
+        if (this.serverConnected) {
+          // 从后端加载替代对话的消息
+          try {
+            const data = await fetchChat(list[0].id)
+            this.messages = (data?.messages || []).map(m => this._restoreMessageCallbacks(m))
+          } catch { this.messages = [] }
+        } else {
+          this.messages = list[0].messages || []
+        }
         this.input = ''
         this.recentChats = list
         this.currentChatId = list[0].id
         this.chatMenu = null
-        lsSet(C.LS_MESSAGES, list[0].messages || [])
+        lsSet(C.LS_MESSAGES, this.messages)
         lsSet(C.LS_CURRENT_CHAT_ID, list[0].id)
       } else {
         this.recentChats = list
         this.chatMenu = null
       }
-      lsSet(C.LS_RECENTS, list)
+      lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
     },
 
-    renameChat(chat) {
+    async renameChat(chat) {
       const newTitle = window.prompt('重命名对话', chat.title)
       if (!newTitle || !newTitle.trim()) return
       const list = this.recentChats.map(c => c.id === chat.id ? { ...c, title: newTitle.trim() } : c)
       this.recentChats = list
       this.chatMenu = null
-      lsSet(C.LS_RECENTS, list)
+      lsSet(C.LS_RECENTS, list.map(c => ({ id: c.id, title: c.title, messages: [] })))
+      // 同步标题到后端
+      if (this.serverConnected) {
+        try {
+          await updateChat(chat.id, newTitle.trim(), null)
+        } catch (err) {
+          console.warn('[renameChat] 后端更新标题失败:', err.message)
+        }
+      }
     },
 
     showChatMenu(chat, e) {
@@ -880,7 +1336,14 @@ export const useAppStore = defineStore('app', {
       if (e && e.stopPropagation) e.stopPropagation()
       const clientX = e && e.clientX ? e.clientX : (e && e.touches && e.touches[0] ? e.touches[0].clientX : 0)
       const clientY = e && e.clientY ? e.clientY : (e && e.touches && e.touches[0] ? e.touches[0].clientY : 0)
-      this.chatMenu = { chat, x: clientX, y: clientY }
+      // 弹窗宽度约 148px、高度约 100px，做视口边界检测防止超出屏幕
+      const vw = (typeof window !== 'undefined' && window.innerWidth) || 320
+      const vh = (typeof window !== 'undefined' && window.innerHeight) || 480
+      const menuW = 148
+      const menuH = 100
+      const clampedX = Math.max(8, Math.min(clientX, vw - menuW - 8))
+      const clampedY = Math.max(8, Math.min(clientY, vh - menuH - 8))
+      this.chatMenu = { chat, x: clampedX, y: clampedY }
     },
 
     closeChatMenu() { this.chatMenu = null },
@@ -913,9 +1376,9 @@ export const useAppStore = defineStore('app', {
       if (this.chatMenu) this.deleteChat(this.chatMenu.chat)
     },
 
-    pullCloud() { this.show('本地模式，无云端') },
-    syncCloud() { this.show('本地模式') },
-    githubBackup() { this.show('本地模式') },
+    pullCloud() { this.show('数据已保存在本地后端 chat-server') },
+    syncCloud() { this.flushCurrentChat(); this.show('已同步到后端') },
+    async githubBackup() { await this.flushCurrentChat(); this.show('数据已同步到后端') },
 
     // Worldbook
     saveWorldbook() {
@@ -1030,6 +1493,16 @@ export const useAppStore = defineStore('app', {
       lsSet(C.LS_MESSAGES, trimMessages(msgs.filter(m => m.role !== 'thinking')))
       this.saveCurrentChat(msgs)
       this.show('已修改')
+      // 记录到增量变更集
+      const pending = this._getPending(this.currentChatId)
+      const existingEdit = pending.edited.find(e => e.sessionId === sessionId)
+      if (existingEdit) {
+        existingEdit.text = newText
+      } else {
+        pending.edited.push({ sessionId, text: newText })
+      }
+      // 编辑后立即同步到后端
+      this.flushCurrentChat()
     }
   }
 })

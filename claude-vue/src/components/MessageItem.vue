@@ -351,10 +351,6 @@ const renderedBody = computed(() => {
 }
 
 @media (max-width: 480px) {
-  .icon-btn {
-    width: 30px;
-    height: 30px;
-  }
   .user-actions {
     opacity: 0.7;
   }
@@ -383,8 +379,8 @@ const renderedBody = computed(() => {
 }
 
 .icon-btn {
-  width: 25px;
-  height: 25px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   padding: 0;

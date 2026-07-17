@@ -1,15 +1,34 @@
 <script setup>
+import { ref, watch, nextTick } from 'vue'
 import { useAppStore } from '@/stores/app'
 
 const store = useAppStore()
+const textareaRef = ref(null)
+
+function autoResize() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, window.innerHeight * 0.5) + 'px'
+}
+
+function onInput(e) {
+  store.inputChange(e.target.value)
+  autoResize()
+}
+
+watch(() => store.input, () => {
+  nextTick(autoResize)
+})
 </script>
 
 <template>
   <div class="chat-input-bar">
     <div class="input-card">
       <textarea
+        ref="textareaRef"
         :value="store.input"
-        @input="store.inputChange($event.target.value)"
+        @input="onInput"
         @keydown="store.inputKey"
         :placeholder="store.inputPlaceholder"
         rows="1"
@@ -86,7 +105,7 @@ const store = useAppStore()
   color: #2B2620;
   padding: 2px 4px 17px;
   font-weight: 300;
-  field-sizing: content;
+  overflow-y: auto;
 }
 
 .image-preview-row {
@@ -116,13 +135,13 @@ const store = useAppStore()
   position: absolute;
   top: -4px;
   right: -4px;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #1A1815;
   color: #FFF;
   border: none;
-  font-size: 12px;
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   display: flex;
@@ -164,8 +183,8 @@ const store = useAppStore()
 }
 
 .tool-btn-round {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: #F2EFE8;
   border: none;
@@ -198,8 +217,8 @@ const store = useAppStore()
 }
 
 .tool-btn-icon {
-  width: 24px;
-  height: 24px;
+  width: 40px;
+  height: 40px;
   background: transparent;
   border: none;
   display: flex;

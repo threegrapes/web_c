@@ -75,7 +75,7 @@ const store = useAppStore()
   overflow: hidden;
   background: #F5F3EE;
   border-radius: 16px 16px 0 0;
-  padding: 12px 0 26px;
+  padding: 12px 0 calc(env(safe-area-inset-bottom, 0px) + 26px);
   animation: slideUp 0.25s ease both;
 }
 
@@ -163,8 +163,8 @@ const store = useAppStore()
 }
 
 .list-item-remove {
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   border: 1px solid #E7E3DA;
   background: #FFF;
   border-radius: 50%;
@@ -172,7 +172,7 @@ const store = useAppStore()
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   color: #9A958B;
   padding: 0;
   flex: none;
@@ -195,7 +195,7 @@ const store = useAppStore()
   background: transparent;
   outline: none;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   color: #1A1815;
   margin-bottom: 8px;
 }

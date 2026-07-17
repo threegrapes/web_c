@@ -19,7 +19,11 @@ export const LS_ACTIVE_PERSONA = 'active_persona'
 export const LS_RECENTS = 'recent_chats'
 export const LS_CURRENT_CHAT_ID = 'current_chat_id'
 
-export const MAX_MESSAGES = 200
+// 同步机制相关常量
+export const LS_UNSYNCED = 'unsynced_messages'   // 未同步到后端的消息缓冲
+export const CHAT_SERVER_URL = 'http://localhost:3001/api'
+export const SYNC_INTERVAL = 180000               // 定时同步间隔：3 分钟（ms）
+export const MAX_MESSAGES = 2000                  // 后端存储上限大幅放宽
 export const DEMO_THOUGHT = 'This is a placeholder for the Thought process panel.\n\nReplace this area with your own explanation text if needed.'
 
 export const DEFAULT_STYLE = { title: 'Soft neutral', content: 'Warm companion UI.' }

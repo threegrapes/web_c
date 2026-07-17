@@ -69,7 +69,7 @@ const store = useAppStore()
   overflow: hidden;
   background: #F5F3EE;
   border-radius: 16px 16px 0 0;
-  padding: 12px 0 26px;
+  padding: 12px 0 calc(env(safe-area-inset-bottom, 0px) + 26px);
   animation: slideUp 0.25s ease both;
 }
 
@@ -154,7 +154,7 @@ const store = useAppStore()
   resize: vertical;
   outline: none;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
   color: #1A1815;
   min-height: 120px;

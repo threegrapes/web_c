@@ -66,7 +66,7 @@ const store = useAppStore()
   background: #F5F3EE;
   border-radius: 14px;
   padding: 13px 16px;
-  font-size: 15px;
+  font-size: 16px;
   font-family: inherit;
   color: #2B2620;
   outline: none;

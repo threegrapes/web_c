@@ -19,8 +19,8 @@ import DemoCodeModal from '@/components/DemoCodeModal.vue'
 
 const store = useAppStore()
 
-onMounted(() => {
-  store.init()
+onMounted(async () => {
+  await store.init()
 })
 </script>
 

@@ -71,13 +71,13 @@ export function buildUserMessage(text, attachedImages = [], sessionId = '') {
     hasThink: false,
     text: displayText,
     role: 'user',
-    sessionId,
+    sessionId,   // 一对消息共用同一个 sessionId
     hasImages,
     imageCount: attachedImages.length
   }
 }
 
-export function buildAiMessage(text, opts = {}) {
+export function buildAiMessage(text, sessionId = '', opts = {}) {
   return {
     align: 'flex-start',
     maxW: '100%',
@@ -97,7 +97,7 @@ export function buildAiMessage(text, opts = {}) {
     text,
     role: 'assistant',
     isAi: true,
-    sessionId: opts.sessionId || '',
+    sessionId,   // 与对应的 user 消息共享同一个 sessionId
     ...opts
   }
 }

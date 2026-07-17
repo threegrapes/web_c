@@ -131,7 +131,7 @@ watch(() => store.messages, scrollToBottom, { deep: true })
 
 .chat-header {
   flex: none;
-  padding: 18px 16px 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;

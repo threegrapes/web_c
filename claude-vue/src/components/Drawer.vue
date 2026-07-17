@@ -128,7 +128,7 @@ const store = useAppStore()
   left: 0;
   top: 0;
   bottom: 0;
-  width: 300px;
+  width: min(300px, 85vw);
   background: #F5F3EE;
   display: flex;
   flex-direction: column;
@@ -138,7 +138,7 @@ const store = useAppStore()
 
 .drawer-header {
   flex: none;
-  padding: 56px 24px 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 56px) 24px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

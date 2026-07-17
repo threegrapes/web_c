@@ -6,6 +6,7 @@ const store = useAppStore()
 
 <template>
   <div class="thought-sheet">
+    <div class="thought-backdrop" @click="store.closeSheet"></div>
     <div class="thought-panel">
       <div class="thought-header">
         <button class="thought-close" @click="store.closeSheet">
@@ -30,9 +31,16 @@ const store = useAppStore()
   z-index: 260;
 }
 
+.thought-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  animation: fadeIn 0.15s ease both;
+}
+
 .thought-panel {
   position: absolute;
-  top: 36px;
+  top: calc(env(safe-area-inset-top, 0px) + 36px);
   bottom: 0;
   left: 0;
   right: 0;
@@ -105,5 +113,6 @@ const store = useAppStore()
   word-break: break-word;
 }
 
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: none; } }
 </style>

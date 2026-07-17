@@ -77,7 +77,7 @@ const store = useAppStore()
   right: 0;
   background: #F5F3EE;
   border-radius: 16px 16px 0 0;
-  padding: 12px 16px 30px;
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 30px);
   animation: slideUp 0.25s ease both;
   max-height: 82%;
   overflow-y: auto;

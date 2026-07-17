@@ -76,7 +76,7 @@ const store = useAppStore()
   position: absolute;
   inset: 0;
   overflow-y: auto;
-  padding: 8px 20px 24px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 20px 24px;
 }
 
 .home-header {

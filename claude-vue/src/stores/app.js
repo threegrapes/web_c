@@ -32,6 +32,7 @@ export const useAppStore = defineStore('app', {
     // 其他 UI
     apiAdvanced: false,
     editText: '',
+    editingSessionId: '',
     currentThoughtText: C.DEMO_THOUGHT,
     showDemoCodeInput: false,
     demoCodeDraft: '',
@@ -235,7 +236,16 @@ export const useAppStore = defineStore('app', {
       if ((s.messages || []).length === 0) return []
       return s.messages.map((m) => {
         if (m.role === 'user' || m.align === 'flex-end') {
-          return { ...m, edit: () => { s.input = m.text; s.show('已填入输入框，可修改后发送') } }
+          const isEditing = s.editingSessionId === m.sessionId && !!m.sessionId
+          return {
+            ...m,
+            showEdit: isEditing,
+            showNormal: !isEditing,
+            edit: m.sessionId
+              ? () => { s.editingSessionId = m.sessionId; s.editText = m.text }
+              : () => { s.input = m.text; s.show('已填入输入框，可修改后发送') },
+            delete: () => s.deleteSession(m.sessionId)
+          }
         }
         if (m.role === 'assistant' || m.align === 'flex-start') {
           return {
@@ -361,8 +371,9 @@ export const useAppStore = defineStore('app', {
       if (!apiUrl || !apiKey) { this.show('请先在 API settings 中填写 URL 和 Key'); this.openApiSheet(); return }
       if (!model) { this.show('请先选择或输入一个模型'); this.openApiSheet(); return }
 
+      const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
       const attachedImages = this.attachedImages || []
-      const userMsg = buildUserMessage(userMessage, attachedImages)
+      const userMsg = buildUserMessage(userMessage, attachedImages, sessionId)
       const thinkingPlaceholder = buildThinkingPlaceholder()
       const newMessages = [...this.messages, userMsg, thinkingPlaceholder]
 
@@ -416,7 +427,11 @@ export const useAppStore = defineStore('app', {
       const endpoint = isAnthropic ? base + '/v1/messages' : base + '/v1/chat/completions'
 
       const makeHeaders = (withThinking) => {
-        const h = { 'Content-Type': 'application/json' }
+        const h = {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        }
         if (isAnthropic) {
           h['x-api-key'] = apiKey
           h['anthropic-version'] = withThinking ? '2025-04-14' : '2023-06-01'
@@ -432,59 +447,132 @@ export const useAppStore = defineStore('app', {
         max_tokens: withThinking ? 16000 : 4096,
         messages: apiMessages.filter(m => m.role !== 'system'),
         system: systemPrompt.trim() || undefined,
+        stream: true,
         ...(withThinking ? { thinking: { type: 'enabled', budget_tokens: 8000 } } : {})
       } : {
-        model, messages: apiMessages, stream: false, temperature: 0.7
+        model, messages: apiMessages, stream: true, temperature: 0.7
       }
 
-      const parseResponse = (data) => {
-        let aiReply = '', thinkingText = '', thinkingSummary = ''
-        if (isAnthropic) {
-          const contentBlocks = data.content || []
-          for (const block of contentBlocks) {
-            if (block.type === 'thinking' && block.thinking) thinkingText += block.thinking
-            else if (block.type === 'text' && block.text) aiReply = block.text
+      const readStream = async (response, onDelta) => {
+        if (!response.body) throw new Error('响应不支持流式读取')
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        let done = false
+        while (!done) {
+          const { value, done: readerDone } = await reader.read()
+          if (readerDone) { done = true; break }
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed.startsWith('data:')) continue
+            const dataStr = trimmed.replace(/^data:\s*/, '').trim()
+            if (dataStr === '[DONE]') { done = true; break }
+            if (!dataStr) continue
+            try {
+              const data = JSON.parse(dataStr)
+              onDelta(data)
+            } catch (e) {
+              console.warn('SSE JSON 解析失败:', dataStr, e)
+            }
           }
-          if (!aiReply) aiReply = '(无回复)'
-        } else {
-          const msgObj = data.choices?.[0]?.message || {}
-          aiReply = msgObj.content || '(无回复)'
-          thinkingText = msgObj.reasoning_content || msgObj.reasoning || ''
         }
-        if (thinkingText) {
-          const firstLine = thinkingText.split('\n').find(l => l.trim()) || ''
-          thinkingSummary = firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine
-        }
-        return { aiReply, thinkingText, thinkingSummary }
+      }
+
+      const extractError = async (response) => {
+        let errText = 'HTTP ' + response.status
+        try {
+          const errData = await response.json()
+          errText = errData.error?.message || errData.message || errText
+        } catch {}
+        return errText
       }
 
       try {
+        let response
         const headers1 = makeHeaders(true)
         const body1 = makeBody(true)
+        console.log('[stream] request body:', body1)
         const resp1 = await fetch(endpoint, { method: 'POST', headers: headers1, body: JSON.stringify(body1) })
-        let data
+        console.log('[stream] response status:', resp1.status, 'content-type:', resp1.headers.get('content-type'))
         if (!resp1.ok) {
           if (isAnthropic) {
             const headers2 = makeHeaders(false)
             const body2 = makeBody(false)
             const resp2 = await fetch(endpoint, { method: 'POST', headers: headers2, body: JSON.stringify(body2) })
-            if (!resp2.ok) {
-              let errText = 'HTTP ' + resp2.status
-              try { const errData = await resp2.json(); errText = errData.error?.message || errData.message || errText } catch {}
-              throw new Error(errText)
-            }
-            data = await resp2.json()
+            if (!resp2.ok) throw new Error(await extractError(resp2))
+            response = resp2
           } else {
-            let errText = 'HTTP ' + resp1.status
-            try { const errData = await resp1.json(); errText = errData.error?.message || errData.message || errText } catch {}
-            throw new Error(errText)
+            throw new Error(await extractError(resp1))
           }
         } else {
-          data = await resp1.json()
+          response = resp1
         }
 
-        const { aiReply, thinkingText, thinkingSummary } = parseResponse(data)
+        let aiReply = ''
+        let thinkingText = ''
+        let thinkingSummary = ''
+
+        // 把 thinking placeholder 替换为可流式渲染的 AI 消息
+        let streamIdx = this.messages.findIndex(m => m.role === 'thinking')
+        if (streamIdx > -1) {
+          const msgs = [...this.messages]
+          msgs[streamIdx] = buildAiMessage('', { showActions: false, isStreaming: true })
+          this.messages = msgs
+        }
+        this.sparkAnim = 'writing'
+
+        const updateStreamText = () => {
+          if (streamIdx < 0) return
+          const msgs = [...this.messages]
+          msgs[streamIdx] = { ...msgs[streamIdx], text: aiReply || '...' }
+          this.messages = msgs
+        }
+
+        const contentType = (response.headers.get('content-type') || '').toLowerCase()
+        if (!contentType.includes('text/event-stream')) {
+          // 上游未返回 SSE，退回到一次性 JSON 解析
+          const data = await response.json()
+          if (isAnthropic) {
+            const contentBlocks = data.content || []
+            for (const block of contentBlocks) {
+              if (block.type === 'thinking' && block.thinking) thinkingText += block.thinking
+              else if (block.type === 'text' && block.text) aiReply = block.text
+            }
+          } else {
+            const msgObj = data.choices?.[0]?.message || {}
+            aiReply = msgObj.content || ''
+            thinkingText = msgObj.reasoning_content || msgObj.reasoning || ''
+          }
+          updateStreamText()
+        } else {
+          await readStream(response, (data) => {
+            if (isAnthropic) {
+              if (data.type === 'content_block_delta') {
+                const delta = data.delta || {}
+                if (delta.type === 'text_delta' && delta.text) aiReply += delta.text
+                else if (delta.type === 'thinking_delta' && delta.thinking) thinkingText += delta.thinking
+              }
+            } else {
+              const delta = data.choices?.[0]?.delta || {}
+              if (delta.content) aiReply += delta.content
+              if (delta.reasoning_content) thinkingText += delta.reasoning_content
+              else if (delta.reasoning) thinkingText += delta.reasoning
+            }
+            updateStreamText()
+          })
+        }
+
+        if (!aiReply) aiReply = '(无回复)'
+        if (thinkingText) {
+          const firstLine = thinkingText.split('\n').find(l => l.trim()) || ''
+          thinkingSummary = firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine
+        }
+
         const aiMsg = buildAiMessage(aiReply, {
+          sessionId,
           hasThink: !!thinkingText,
           thinkSummary: thinkingSummary || 'Thought process',
           openThink: thinkingText ? (() => this.openThoughtSheet(thinkingText)) : noop,
@@ -501,16 +589,17 @@ export const useAppStore = defineStore('app', {
           prev: () => this.show('无更多版本'),
           next: () => this.show('无更多版本')
         })
-        const cleanedMessages = newMessages.filter(m => m.role !== 'thinking')
-        const finalMessages = [...cleanedMessages, aiMsg]
-        this.messages = finalMessages
+        const msgs = [...this.messages]
+        if (streamIdx > -1) msgs[streamIdx] = aiMsg
+        else msgs.push(aiMsg)
+        this.messages = msgs
         this.isBusy = false
         this.sparkAnim = null
-        lsSet(C.LS_MESSAGES, trimMessages(finalMessages))
-        this.saveCurrentChat(finalMessages)
+        lsSet(C.LS_MESSAGES, trimMessages(msgs))
+        this.saveCurrentChat(msgs)
       } catch (error) {
         this.show('连接失败: ' + error.message)
-        const cleanedMessages = this.messages.filter(m => m.role !== 'thinking')
+        const cleanedMessages = this.messages.filter(m => m.role !== 'thinking' && !m.isStreaming)
         this.messages = cleanedMessages
         this.isBusy = false
         this.sparkAnim = null
@@ -526,6 +615,15 @@ export const useAppStore = defineStore('app', {
       this.messages = cleanMsgs
       this.input = lastUserMsg.text
       await this.sendMessage()
+    },
+
+    deleteSession(sessionId) {
+      if (!sessionId) { this.show('无法删除：缺少 sessionId'); return }
+      const remaining = this.messages.filter(m => m.sessionId !== sessionId)
+      this.messages = remaining
+      lsSet(C.LS_MESSAGES, trimMessages(remaining.filter(m => m.role !== 'thinking')))
+      this.saveCurrentChat(remaining)
+      this.show('已删除该轮对话')
     },
 
     // API 模型管理
@@ -911,9 +1009,27 @@ export const useAppStore = defineStore('app', {
     confirmTokenTouch() { this.confirmToken() },
     demoCodeDraftChange(value) { this.demoCodeDraft = value },
 
-    // 编辑（占位）
+    // 编辑
     editTextChange(value) { this.editText = value },
-    cancelEdit() { this.show('编辑取消') },
-    saveEdit() { this.show('编辑保存') }
+    cancelEdit() {
+      this.editingSessionId = ''
+      this.editText = ''
+    },
+    saveEdit() {
+      const sessionId = this.editingSessionId
+      if (!sessionId) return
+      const newText = this.editText.trim()
+      if (!newText) { this.show('内容不能为空'); return }
+      const idx = this.messages.findIndex(m => m.sessionId === sessionId && (m.role === 'user' || m.align === 'flex-end'))
+      if (idx === -1) return
+      const msgs = [...this.messages]
+      msgs[idx] = { ...msgs[idx], text: newText }
+      this.messages = msgs
+      this.editingSessionId = ''
+      this.editText = ''
+      lsSet(C.LS_MESSAGES, trimMessages(msgs.filter(m => m.role !== 'thinking')))
+      this.saveCurrentChat(msgs)
+      this.show('已修改')
+    }
   }
 })

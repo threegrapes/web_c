@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import Welcome from './Welcome.vue'
 import MessageItem from './MessageItem.vue'
 import ChatInput from './ChatInput.vue'
 
 const store = useAppStore()
+const scrollRef = ref(null)
+const showBackBtn = ref(false)
+const userScrolledUp = ref(false)
 
 const lastAiIndex = computed(() => {
   const msgs = store.displayMessages
@@ -14,6 +17,44 @@ const lastAiIndex = computed(() => {
   }
   return -1
 })
+
+const isAtBottom = () => {
+  const el = scrollRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 50
+}
+
+const handleScroll = () => {
+  const atBottom = isAtBottom()
+  userScrolledUp.value = !atBottom
+  showBackBtn.value = !atBottom
+}
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (userScrolledUp.value) return
+    const el = scrollRef.value
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
+  })
+}
+
+const goBackToBottom = () => {
+  const el = scrollRef.value
+  if (!el) return
+  el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  userScrolledUp.value = false
+  showBackBtn.value = false
+}
+
+onMounted(() => {
+  scrollToBottom()
+  scrollRef.value?.addEventListener('scroll', handleScroll, { passive: true })
+})
+onUnmounted(() => {
+  scrollRef.value?.removeEventListener('scroll', handleScroll)
+})
+watch(() => store.messages, scrollToBottom, { deep: true })
 </script>
 
 <template>
@@ -51,7 +92,7 @@ const lastAiIndex = computed(() => {
     <div class="messages-area">
       <div class="scroll-fade scroll-fade-top"></div>
       <div class="scroll-fade scroll-fade-bottom"></div>
-      <div class="messages-scroll sa">
+      <div ref="scrollRef" class="messages-scroll sa">
         <Welcome v-if="store.showWelcome" />
 
         <div v-if="!store.showWelcome" class="empty-watermark">
@@ -63,11 +104,17 @@ const lastAiIndex = computed(() => {
 
         <MessageItem
           v-for="(m, i) in store.displayMessages"
-          :key="i"
+          :key="m.sessionId || i"
           :message="m"
           :show-badge="i === lastAiIndex"
         />
       </div>
+      <button v-if="showBackBtn" class="back-to-bottom" @click="goBackToBottom">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        回到最新消息
+      </button>
     </div>
 
     <ChatInput />
@@ -199,5 +246,27 @@ const lastAiIndex = computed(() => {
   margin-top: 24px;
   display: flex;
   justify-content: flex-start;
+}
+
+.back-to-bottom {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #FFF;
+  color: #48453E;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  box-shadow: 0 0 0 1px rgba(43, 38, 30, 0.08), 0 4px 12px rgba(43, 38, 30, 0.12);
+  z-index: 10;
+  transition: opacity 0.2s;
 }
 </style>

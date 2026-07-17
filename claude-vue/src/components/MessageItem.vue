@@ -86,8 +86,8 @@ const renderedBody = computed(() => {
           class="edit-textarea"
         />
         <div class="edit-actions">
-          <button class="btn-cancel" @click="store.cancelEdit">取消</button>
-          <button class="btn-send" @click="store.saveEdit">发送</button>
+          <button class="btn-cancel" @click="store.cancelEdit">Cancel</button>
+          <button class="btn-send" @click="store.saveEdit">Modify</button>
         </div>
       </div>
     </div>
@@ -97,6 +97,11 @@ const renderedBody = computed(() => {
       <button class="icon-btn" @click="message.edit">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button v-if="message.sessionId" class="icon-btn" @click="message.delete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6M10 11v6M14 11v6" stroke="#48453E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
     </div>
@@ -334,8 +339,25 @@ const renderedBody = computed(() => {
 .user-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 2px;
   margin-top: 6px;
   opacity: 0.45;
+}
+
+@media (hover: none) {
+  .user-actions {
+    opacity: 0.7;
+  }
+}
+
+@media (max-width: 480px) {
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .user-actions {
+    opacity: 0.7;
+  }
 }
 
 .ai-actions {

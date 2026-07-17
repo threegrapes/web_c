@@ -51,7 +51,7 @@ export function getMobileGreeting() {
   return `${time}, 亦潇`
 }
 
-export function buildUserMessage(text, attachedImages = []) {
+export function buildUserMessage(text, attachedImages = [], sessionId = '') {
   const hasImages = attachedImages.length > 0
   const displayText = hasImages ? (text || '[图片]') : text
   return {
@@ -71,6 +71,7 @@ export function buildUserMessage(text, attachedImages = []) {
     hasThink: false,
     text: displayText,
     role: 'user',
+    sessionId,
     hasImages,
     imageCount: attachedImages.length
   }
@@ -96,6 +97,7 @@ export function buildAiMessage(text, opts = {}) {
     text,
     role: 'assistant',
     isAi: true,
+    sessionId: opts.sessionId || '',
     ...opts
   }
 }
